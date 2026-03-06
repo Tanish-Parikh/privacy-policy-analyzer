@@ -6,17 +6,17 @@ The extension helps users quickly understand how their data may be used by simpl
 
 Features
 
-Detects risky privacy clauses
+🔍 Detects risky privacy clauses
 
-Calculates a privacy risk score
+📊 Calculates a privacy risk score
 
-Highlights data sharing statements
+⚠️ Highlights data sharing statements
 
-Simplifies complex legal language
+🧾 Simplifies complex legal language
 
-Works directly on privacy policy pages
+🌐 Works directly on privacy policy pages
 
-Helps users understand potential privacy risks
+🛡️ Helps users understand potential privacy risks
 
 Tech Stack
 
@@ -141,4 +141,4 @@ Tanish Parikh
 
 License
 
-This project is open-source.
+This project is open-source
