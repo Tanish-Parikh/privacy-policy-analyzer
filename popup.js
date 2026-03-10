@@ -1,155 +1,266 @@
-document.addEventListener('DOMContentLoaded', initTheme);
+let data = [];
+let activeFilter = 'all';
+let activeRisks = new Set(['high', 'medium', 'low']);
 
-function initTheme() {
-  const themeToggle = document.getElementById('theme-toggle');
-  const sunIcon = document.getElementById('sun-icon');
-  const moonIcon = document.getElementById('moon-icon');
+const riskMeta = {
+  high: { cls: 'high', label: 'HIGH RISK', color: '#f87171' },
+  medium: { cls: 'medium', label: 'MEDIUM RISK', color: '#fbbf24' },
+  low: { cls: 'low', label: 'LOW RISK', color: '#34d399' }
+};
 
-  chrome.storage.local.get('theme', (result) => {
-    if (result.theme === 'light') {
-      document.body.classList.add('light-theme');
-      if (sunIcon) sunIcon.classList.remove('hidden');
-      if (moonIcon) moonIcon.classList.add('hidden');
-    }
-  });
+/* ─── Render circular risk chart ─── */
+function renderRiskChart(counts) {
+  const chart = document.getElementById('risk-chart');
+  const legend = document.getElementById('risk-legend');
 
-  if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-      const isLight = document.body.classList.toggle('light-theme');
-      chrome.storage.local.set({ theme: isLight ? 'light' : 'dark' });
+  const total = counts.high + counts.medium + counts.low;
 
-      if (sunIcon) sunIcon.classList.toggle('hidden', !isLight);
-      if (moonIcon) moonIcon.classList.toggle('hidden', isLight);
-    });
-  }
-}
-
-// 2. Call the deployed Vercel function
-async function analyzeClause(clause) {
-  try {
-    const response = await fetch(
-      "https://privacy-policy-analyzer-seven.vercel.app/api/analyze",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ clause })
-      }
-    );
-    if (!response.ok) {
-      console.warn("API returned status:", response.status);
-      return null;
-    }
-    return await response.json();
-  } catch (err) {
-    console.error("API call failed:", err);
-    return null;
-  }
-}
-
-document.getElementById('analyze').onclick = async () => {
-  const btn = document.getElementById('analyze');
-  const cardsBox = document.getElementById('cards');
-  const statusEl = document.getElementById('status-message');
-
-  btn.classList.add('loading');
-  btn.innerHTML = '⏳ Extracting clauses…';
-  cardsBox.innerHTML = '';
-  statusEl.textContent = "Extracting text from page...";
-
-  // Get active tab
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  let clauses = [];
-  try {
-    const res = await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
-    if (res && res.clauses) clauses = res.clauses;
-  } catch (e) {
-    try {
-      // Content script not loaded, inject it
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      });
-      await new Promise(r => setTimeout(r, 200));
-      const res = await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
-      if (res && res.clauses) clauses = res.clauses;
-    } catch (err) {
-      statusEl.textContent = 'Cannot analyze this page.';
-      btn.classList.remove('loading');
-      btn.innerHTML = '🔍 Analyze Policy';
-      return;
-    }
-  }
-
-  if (!clauses || clauses.length === 0) {
-    statusEl.textContent = 'No policy text found.';
-    btn.classList.remove('loading');
-    btn.innerHTML = '🔍 Analyze Policy';
+  if (total === 0) {
+    chart.style.background = 'var(--border-color)';
+    legend.innerHTML = '';
     return;
   }
 
-  // To prevent overwhelming the API or the user waiting too long,
-  // cap analysis at a reasonable number of clauses for now.
-  const limit = Math.min(clauses.length, 30);
-  const targetClauses = clauses.slice(0, limit);
+  const hp = (counts.high / total) * 100;
+  const mp = (counts.medium / total) * 100;
 
-  statusEl.textContent = `Analyzing ${targetClauses.length} clauses with AI...`;
-  let foundRisks = 0;
+  chart.style.background = `conic-gradient(
+    #f87171 0% ${hp}%,
+    #fbbf24 ${hp}% ${hp + mp}%,
+    #34d399 ${hp + mp}% 100%
+  )`;
 
-  for (let i = 0; i < targetClauses.length; i++) {
-    const clause = targetClauses[i];
-    statusEl.innerHTML = `Analyzing clause <strong>${i + 1}</strong> of ${targetClauses.length}...`;
+  legend.innerHTML = `
+    <div class="legend-item"><span class="legend-dot" style="background:#f87171"></span> High (${counts.high})</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span> Med (${counts.medium})</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#34d399"></span> Low (${counts.low})</div>
+  `;
+}
 
-    // 3. Call the API
-    const result = await analyzeClause(clause);
+/* ─── Summary text ─── */
+function generateSummary(counts, readabilityGrade, privacyRiskPct) {
+  const textEl = document.getElementById('summary-text');
 
-    // 4. Only show medium / high risk
-    if (result && (result.risk_level === 'medium' || result.risk_level === 'high')) {
-      foundRisks++;
-      renderResult(clause, result);
-    }
-  }
+  let riskLevel =
+    privacyRiskPct > 60 ? 'high-risk' :
+    privacyRiskPct > 30 ? 'moderate risk' :
+    'low-risk';
 
-  if (foundRisks === 0) {
-    statusEl.textContent = 'Analysis complete. No high/medium risks found in the analyzed section.';
-    cardsBox.innerHTML = '<div class="empty-state">✅ Everything looks safe!</div>';
+  let overview = `This policy is <strong>${readabilityGrade.toLowerCase()}</strong> to read and holds a <strong>${riskLevel}</strong> profile. `;
+
+  let findings = '';
+
+  if (counts.high > 0) {
+    findings += `It contains <strong>${counts.high} high-risk</strong> clauses. `;
+  } else if (counts.medium > 0) {
+    findings += `It contains ${counts.medium} medium-risk clauses. `;
   } else {
-    statusEl.innerHTML = `Analysis complete. Found <strong>${foundRisks}</strong> risks.`;
+    findings += `It mostly contains low-risk practices. `;
   }
 
-  btn.classList.remove('loading');
-  btn.innerHTML = '🔍 Analyze Policy';
+  textEl.innerHTML = overview + findings;
+}
+
+/* ─── Render clause cards ─── */
+function render(filter) {
+
+  if (filter !== undefined) activeFilter = filter;
+
+  const cardsBox = document.getElementById('cards');
+  const summaryView = document.getElementById('summary-view');
+
+  if (activeFilter === 'summary') {
+    cardsBox.classList.add('hidden');
+    summaryView.classList.remove('hidden');
+    cardsBox.innerHTML = '';
+  } else {
+    cardsBox.classList.remove('hidden');
+    summaryView.classList.add('hidden');
+    cardsBox.innerHTML = '';
+  }
+
+  const filtered = data.filter(c => {
+    const tabMatch =
+      activeFilter === 'all' ||
+      (activeFilter === 'share' && c.type === 'Data Sharing');
+
+    const riskMatch = activeRisks.has(c.risk);
+
+    return tabMatch && riskMatch;
+  });
+
+  if (filtered.length === 0) {
+    cardsBox.innerHTML = `<div class="empty-state">✅ No matching clauses found.</div>`;
+    return;
+  }
+
+  filtered.forEach((c, i) => {
+
+    const d = document.createElement('div');
+    d.className = 'card';
+    d.style.animationDelay = `${i * 45}ms`;
+
+    const m = riskMeta[c.risk] || riskMeta.medium;
+
+    const preview = c.text.length > 120
+      ? c.text.substring(0, 120) + '...'
+      : c.text;
+
+    const hasMore = c.text.length > 120;
+
+    const explanation = c.simple || "Explanation unavailable";
+
+    d.innerHTML = `
+      <div class="card-header">
+        <span class="${m.cls}">${m.label}</span>
+        <span class="card-type">${c.type}</span>
+      </div>
+
+      <div class="clause-preview">${preview}</div>
+
+      ${hasMore ? `<div class="clause-full">${c.text}</div>
+      <button class="toggle-btn">View More</button>` : ''}
+
+      <div class="exp">${explanation}</div>
+    `;
+
+    cardsBox.appendChild(d);
+
+    const toggleBtn = d.querySelector('.toggle-btn');
+
+    if (toggleBtn) {
+
+      toggleBtn.addEventListener('click', () => {
+
+        const full = d.querySelector('.clause-full');
+        const prev = d.querySelector('.clause-preview');
+
+        const isHidden = window.getComputedStyle(full).display === 'none';
+
+        if (isHidden) {
+          full.style.display = 'block';
+          prev.style.display = 'none';
+          toggleBtn.textContent = 'View Less';
+        } else {
+          full.style.display = 'none';
+          prev.style.display = 'block';
+          toggleBtn.textContent = 'View More';
+        }
+
+      });
+
+    }
+
+  });
+
+}
+
+/* ─── Analyze button ─── */
+
+document.getElementById('analyze').onclick = async () => {
+
+  const btn = document.getElementById('analyze');
+
+  btn.classList.add('loading');
+  btn.innerHTML = '⏳ Analyzing…';
+
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+
+  try {
+
+    await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
+
+  } catch {
+
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    });
+
+    await new Promise(r => setTimeout(r, 200));
+
+    await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
+
+  }
+
+  const poll = setInterval(() => {
+
+    chrome.storage.local.get(null, d => {
+
+      if (d.score !== undefined || d.error) {
+
+        clearInterval(poll);
+
+        data = d.clauses || [];
+
+        if (!d.score) {
+          btn.classList.remove('loading');
+          btn.innerHTML = '🔍 Analyze Policy';
+          return;
+        }
+
+        const counts = {
+          high: data.filter(c => c.risk === 'high').length,
+          medium: data.filter(c => c.risk === 'medium').length,
+          low: data.filter(c => c.risk === 'low').length
+        };
+
+        updateGauge(d.score);
+
+        renderRiskChart(counts);
+
+        generateSummary(counts, d.grade, d.privacyRiskPct);
+
+        btn.classList.remove('loading');
+        btn.innerHTML = '🔍 Analyze Policy';
+
+        render('summary');
+
+      }
+
+    });
+
+  }, 300);
+
 };
 
-// 5. Build dynamic result card
-function renderResult(clause, result) {
-  const cardsBox = document.getElementById('cards');
-  const d = document.createElement('div');
+/* ─── Tabs ─── */
 
-  const isHigh = (result.risk_level === 'high');
-  // Styling via classes added over in popup.css
-  d.className = `card ${isHigh ? 'high-risk' : 'medium-risk'}`;
+document.getElementById('all').onclick = () => render('all');
+document.getElementById('summary').onclick = () => render('summary');
+document.getElementById('share').onclick = () => render('share');
 
-  d.innerHTML = `
-    <div class="card-header" style="margin-bottom: 12px;">
-      <span class="warning-title">
-        ⚠ Risky Clause Detected
-      </span>
-      <span class="card-type">
-        ${result.type ? result.type.toUpperCase() : 'ISSUE'}
-      </span>
-    </div>
-    
-    <div class="risk-label">Clause:</div>
-    <div class="clause-text">"${clause}"</div>
-    
-    <div class="risk-label">Risk Level:</div>
-    <div class="risk-value ${isHigh ? 'text-red' : 'text-yellow'}">${result.risk_level}</div>
-    
-    <div class="risk-label">Explanation:</div>
-    <div class="exp">${result.explanation}</div>
-  `;
-  cardsBox.appendChild(d);
+/* ─── Theme toggle ─── */
+
+function initTheme() {
+
+  const themeToggle = document.getElementById('theme-toggle');
+
+  chrome.storage.local.get('theme', (result) => {
+
+    if (result.theme === 'light') {
+      document.body.classList.add('light-theme');
+    }
+
+  });
+
+  if (themeToggle) {
+
+    themeToggle.addEventListener('click', () => {
+
+      const isLight = document.body.classList.toggle('light-theme');
+
+      chrome.storage.local.set({
+        theme: isLight ? 'light' : 'dark'
+      });
+
+    });
+
+  }
+
 }
+
+document.addEventListener('DOMContentLoaded', initTheme);
