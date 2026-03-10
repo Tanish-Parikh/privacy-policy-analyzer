@@ -1,4 +1,15 @@
 {
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "methods": ["OPTIONS"],
+      "dest": "/api/analyze.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/analyze.js"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
