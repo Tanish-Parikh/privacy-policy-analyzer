@@ -3,15 +3,22 @@
   "name": "Privacy Policy Analysis",
   "version": "8.1",
   "description": "Single-screen UI privacy policy analyzer (Centered Gauge Fix).",
+
   "permissions": [
     "activeTab",
     "scripting",
     "storage"
   ],
+
+  "host_permissions": [
+    "https://privacy-policy-analyzer-seven.vercel.app/*"
+  ],
+
   "action": {
     "default_popup": "popup.html",
     "default_icon": "logo.png"
   },
+
   "content_scripts": [
     {
       "matches": [
