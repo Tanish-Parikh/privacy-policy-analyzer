@@ -8,8 +8,43 @@ const riskMeta = {
   low: { cls: 'low', label: 'LOW RISK', color: '#34d399' }
 };
 
-/* ─── Render circular risk chart ─── */
+/* ───────── Gauge (MISSING FUNCTION FIX) ───────── */
+function updateGauge(score) {
+
+  const scoreEl = document.getElementById('score');
+  if (!scoreEl) return;
+
+  scoreEl.textContent = score;
+
+  scoreEl.className =
+    'score ' +
+    (score >= 70 ? 'good' :
+      score >= 50 ? 'moderate' :
+        'high-risk');
+
+  const arc = document.getElementById('arc');
+  const arcGlow = document.getElementById('arc-glow');
+
+  if (!arc || !arcGlow) return;
+
+  const offset = 251 - (score / 100) * 251;
+
+  arc.style.strokeDashoffset = offset;
+  arcGlow.style.strokeDashoffset = offset;
+
+  arc.setAttribute('opacity', '1');
+  arcGlow.setAttribute('opacity', '0.2');
+
+  arcGlow.style.stroke =
+    score >= 70 ? '#34d399'
+      : score >= 50 ? '#fbbf24'
+        : '#f87171';
+}
+
+/* ───────── Risk Chart ───────── */
+
 function renderRiskChart(counts) {
+
   const chart = document.getElementById('risk-chart');
   const legend = document.getElementById('risk-legend');
 
@@ -37,31 +72,37 @@ function renderRiskChart(counts) {
   `;
 }
 
-/* ─── Summary text ─── */
+/* ───────── Summary Text ───────── */
+
 function generateSummary(counts, readabilityGrade, privacyRiskPct) {
+
   const textEl = document.getElementById('summary-text');
 
   let riskLevel =
     privacyRiskPct > 60 ? 'high-risk' :
-    privacyRiskPct > 30 ? 'moderate risk' :
-    'low-risk';
+      privacyRiskPct > 30 ? 'moderate risk' :
+        'low-risk';
 
-  let overview = `This policy is <strong>${readabilityGrade.toLowerCase()}</strong> to read and holds a <strong>${riskLevel}</strong> profile. `;
+  let overview =
+    `This policy is <strong>${readabilityGrade.toLowerCase()}</strong> to read and holds a <strong>${riskLevel}</strong> profile. `;
 
   let findings = '';
 
   if (counts.high > 0) {
     findings += `It contains <strong>${counts.high} high-risk</strong> clauses. `;
-  } else if (counts.medium > 0) {
+  }
+  else if (counts.medium > 0) {
     findings += `It contains ${counts.medium} medium-risk clauses. `;
-  } else {
+  }
+  else {
     findings += `It mostly contains low-risk practices. `;
   }
 
   textEl.innerHTML = overview + findings;
 }
 
-/* ─── Render clause cards ─── */
+/* ───────── Render Clauses ───────── */
+
 function render(filter) {
 
   if (filter !== undefined) activeFilter = filter;
@@ -80,6 +121,7 @@ function render(filter) {
   }
 
   const filtered = data.filter(c => {
+
     const tabMatch =
       activeFilter === 'all' ||
       (activeFilter === 'share' && c.type === 'Data Sharing');
@@ -90,7 +132,8 @@ function render(filter) {
   });
 
   if (filtered.length === 0) {
-    cardsBox.innerHTML = `<div class="empty-state">✅ No matching clauses found.</div>`;
+    cardsBox.innerHTML =
+      `<div class="empty-state">✅ No matching clauses found.</div>`;
     return;
   }
 
@@ -102,9 +145,10 @@ function render(filter) {
 
     const m = riskMeta[c.risk] || riskMeta.medium;
 
-    const preview = c.text.length > 120
-      ? c.text.substring(0, 120) + '...'
-      : c.text;
+    const preview =
+      c.text.length > 120
+        ? c.text.substring(0, 120) + '...'
+        : c.text;
 
     const hasMore = c.text.length > 120;
 
@@ -118,8 +162,11 @@ function render(filter) {
 
       <div class="clause-preview">${preview}</div>
 
-      ${hasMore ? `<div class="clause-full">${c.text}</div>
-      <button class="toggle-btn">View More</button>` : ''}
+      ${hasMore
+        ? `<div class="clause-full">${c.text}</div>
+           <button class="toggle-btn">View More</button>`
+        : ''
+      }
 
       <div class="exp">${explanation}</div>
     `;
@@ -135,16 +182,21 @@ function render(filter) {
         const full = d.querySelector('.clause-full');
         const prev = d.querySelector('.clause-preview');
 
-        const isHidden = window.getComputedStyle(full).display === 'none';
+        const isHidden =
+          window.getComputedStyle(full).display === 'none';
 
         if (isHidden) {
+
           full.style.display = 'block';
           prev.style.display = 'none';
           toggleBtn.textContent = 'View Less';
+
         } else {
+
           full.style.display = 'none';
           prev.style.display = 'block';
           toggleBtn.textContent = 'View More';
+
         }
 
       });
@@ -155,7 +207,7 @@ function render(filter) {
 
 }
 
-/* ─── Analyze button ─── */
+/* ───────── Analyze Button ───────── */
 
 document.getElementById('analyze').onclick = async () => {
 
@@ -164,14 +216,18 @@ document.getElementById('analyze').onclick = async () => {
   btn.classList.add('loading');
   btn.innerHTML = '⏳ Analyzing…';
 
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
-  });
+  const [tab] =
+    await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    });
 
   try {
 
-    await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
+    await chrome.tabs.sendMessage(
+      tab.id,
+      { action: 'analyze' }
+    );
 
   } catch {
 
@@ -182,7 +238,10 @@ document.getElementById('analyze').onclick = async () => {
 
     await new Promise(r => setTimeout(r, 200));
 
-    await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
+    await chrome.tabs.sendMessage(
+      tab.id,
+      { action: 'analyze' }
+    );
 
   }
 
@@ -197,9 +256,11 @@ document.getElementById('analyze').onclick = async () => {
         data = d.clauses || [];
 
         if (!d.score) {
+
           btn.classList.remove('loading');
           btn.innerHTML = '🔍 Analyze Policy';
           return;
+
         }
 
         const counts = {
@@ -212,7 +273,11 @@ document.getElementById('analyze').onclick = async () => {
 
         renderRiskChart(counts);
 
-        generateSummary(counts, d.grade, d.privacyRiskPct);
+        generateSummary(
+          counts,
+          d.grade,
+          d.privacyRiskPct
+        );
 
         btn.classList.remove('loading');
         btn.innerHTML = '🔍 Analyze Policy';
@@ -227,17 +292,23 @@ document.getElementById('analyze').onclick = async () => {
 
 };
 
-/* ─── Tabs ─── */
+/* ───────── Tabs ───────── */
 
-document.getElementById('all').onclick = () => render('all');
-document.getElementById('summary').onclick = () => render('summary');
-document.getElementById('share').onclick = () => render('share');
+document.getElementById('all').onclick =
+  () => render('all');
 
-/* ─── Theme toggle ─── */
+document.getElementById('summary').onclick =
+  () => render('summary');
+
+document.getElementById('share').onclick =
+  () => render('share');
+
+/* ───────── Theme ───────── */
 
 function initTheme() {
 
-  const themeToggle = document.getElementById('theme-toggle');
+  const themeToggle =
+    document.getElementById('theme-toggle');
 
   chrome.storage.local.get('theme', (result) => {
 
@@ -251,7 +322,8 @@ function initTheme() {
 
     themeToggle.addEventListener('click', () => {
 
-      const isLight = document.body.classList.toggle('light-theme');
+      const isLight =
+        document.body.classList.toggle('light-theme');
 
       chrome.storage.local.set({
         theme: isLight ? 'light' : 'dark'
@@ -263,4 +335,7 @@ function initTheme() {
 
 }
 
-document.addEventListener('DOMContentLoaded', initTheme);
+document.addEventListener(
+  'DOMContentLoaded',
+  initTheme
+);
