@@ -3,17 +3,14 @@ import { NVIDIA_API_KEY } from '../config/apiKey.js';
 
 export default async function handler(req, res) {
 
-  /* ───────── ALWAYS SET CORS ───────── */
-
+  // FORCE CORS for all responses
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  /* ───────── HANDLE PREFLIGHT ───────── */
-
+  // Handle preflight request
   if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
+    return res.status(200).json({ ok: true });
   }
 
   if (req.method !== "POST") {
@@ -54,7 +51,10 @@ ${clause}`;
         body: JSON.stringify({
           model: "meta/llama-3.1-8b-instruct",
           messages: [
-            { role: "user", content: prompt }
+            {
+              role: "user",
+              content: prompt
+            }
           ],
           temperature: 0.2,
           max_tokens: 200
@@ -63,18 +63,18 @@ ${clause}`;
     );
 
     if (!response.ok) {
-      const txt = await response.text();
-      console.error("NVIDIA error:", txt);
-      throw new Error("NVIDIA API error");
+      const err = await response.text();
+      console.error("NVIDIA error:", err);
+      throw new Error("NVIDIA API failed");
     }
 
     const data = await response.json();
 
-    const resultText =
+    const text =
       data?.choices?.[0]?.message?.content ||
       JSON.stringify(data);
 
-    const jsonMatch = resultText.match(/\{[\s\S]*?\}/);
+    const jsonMatch = text.match(/\{[\s\S]*?\}/);
 
     if (!jsonMatch) {
       throw new Error("AI JSON parse failed");
