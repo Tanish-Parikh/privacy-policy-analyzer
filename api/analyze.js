@@ -3,33 +3,34 @@ import { NVIDIA_API_KEY } from '../config/apiKey.js';
 
 export default async function handler(req, res) {
 
-  /* ───────── CORS HEADERS ───────── */
+  /* ───────── ALWAYS SET CORS ───────── */
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).send('ok');
+  /* ───────── HANDLE PREFLIGHT ───────── */
+
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { clause } = req.body;
+  const { clause } = req.body || {};
 
   if (!clause) {
-    return res.status(400).json({ error: 'clause missing' });
+    return res.status(400).json({ error: "clause missing" });
   }
-
-  /* ───────── PROMPT ───────── */
 
   const prompt = `You are a privacy policy analyzer.
 
 Analyze the following clause and determine if it creates a privacy risk.
 
-Return JSON in this format ONLY:
+Return JSON ONLY in this format:
 
 {
 "type": "data-sharing | data-collection | functionality | safe",
@@ -42,8 +43,6 @@ ${clause}`;
 
   try {
 
-    /* ───────── NVIDIA API CALL ───────── */
-
     const response = await fetch(
       "https://api.nvcf.nvidia.com/v2/nvcf/pexec/functions",
       {
@@ -55,10 +54,7 @@ ${clause}`;
         body: JSON.stringify({
           model: "meta/llama-3.1-8b-instruct",
           messages: [
-            {
-              role: "user",
-              content: prompt
-            }
+            { role: "user", content: prompt }
           ],
           temperature: 0.2,
           max_tokens: 200
@@ -67,45 +63,33 @@ ${clause}`;
     );
 
     if (!response.ok) {
-
-      const errorText = await response.text();
-
-      console.error("NVIDIA API error:", errorText);
-
-      throw new Error(`NVIDIA API responded with ${response.status}`);
-
+      const txt = await response.text();
+      console.error("NVIDIA error:", txt);
+      throw new Error("NVIDIA API error");
     }
 
     const data = await response.json();
-
-    console.log("NVIDIA raw response:", data);
-
-    /* ───────── EXTRACT AI TEXT ───────── */
 
     const resultText =
       data?.choices?.[0]?.message?.content ||
       JSON.stringify(data);
 
-    /* ───────── PARSE JSON FROM AI OUTPUT ───────── */
-
     const jsonMatch = resultText.match(/\{[\s\S]*?\}/);
 
     if (!jsonMatch) {
-      throw new Error("Failed to parse JSON from AI response");
+      throw new Error("AI JSON parse failed");
     }
 
-    const parsedResult = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]);
 
-    /* ───────── RETURN RESULT ───────── */
-
-    return res.status(200).json(parsedResult);
+    return res.status(200).json(parsed);
 
   } catch (error) {
 
-    console.error('AI analysis error:', error);
+    console.error("AI analysis error:", error);
 
     return res.status(500).json({
-      error: 'AI analysis failed'
+      error: "AI analysis failed"
     });
 
   }
