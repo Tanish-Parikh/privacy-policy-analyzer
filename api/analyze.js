@@ -1,31 +1,30 @@
-// /api/analyze.js
-import { NVIDIA_API_KEY } from '../config/apiKey.js';
+// api/analyze.js
 
 export default async function handler(req, res) {
-    // CORS configuration to allow requests from the browser extension
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight OPTIONS request
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
+  // Allow browser extension requests (CORS)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Ensure request is POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-    const { clause } = req.body;
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-    // 8. Error handling: return 400 if clause missing
-    if (!clause) {
-        return res.status(400).json({ error: 'clause missing' });
-    }
+  const { clause } = req.body;
 
-    // 5. The backend should send the clause to the AI with this prompt
-    const prompt = `You are a privacy policy analyzer.
+  if (!clause) {
+    return res.status(400).json({ error: 'clause missing' });
+  }
+
+  // AI prompt
+  const prompt = `You are a privacy policy analyzer.
 Analyze the following clause and determine if it creates a privacy risk.
 
 Return JSON in this format:
@@ -39,43 +38,57 @@ Return JSON in this format:
 Clause:
 ${clause}`;
 
-    try {
-        // 3. Call the NVIDIA NIM chat completion API
-        const response = await fetch('https://api.nvidia.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${NVIDIA_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'meta/llama3-8b-instruct',
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.2, // Low temperature for more deterministic JSON output
-                max_tokens: 200
-            })
-        });
+  try {
 
-        if (!response.ok) {
-            throw new Error(`NVIDIA API responded with status ${response.status}`);
-        }
+    const response = await fetch('https://api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'meta/llama3-8b-instruct',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 200
+      })
+    });
 
-        const data = await response.json();
-        const resultText = data.choices[0].message.content;
-
-        // Parse the JSON result returned by the LLM
-        // We attempt to find the JSON substring in case the model outputs extra text
-        const jsonMatch = resultText.match(/\{[\s\S]*?\}/);
-        if (!jsonMatch) {
-            throw new Error("Failed to parse JSON from AI response");
-        }
-
-        const parsedResult = JSON.parse(jsonMatch[0]);
-
-        // 6. Return the parsed JSON result to the extension
-        return res.status(200).json(parsedResult);
-    } catch (error) {
-        console.error('AI Analysis failed:', error);
-        // 8. Error handling: return 500 if API fails
-        return res.status(500).json({ error: 'API fails' });
+    if (!response.ok) {
+      throw new Error(`NVIDIA API error: ${response.status}`);
     }
+
+    const data = await response.json();
+
+    const resultText = data.choices?.[0]?.message?.content || "";
+
+    // Extract JSON from model output
+    const jsonMatch = resultText.match(/\{[\s\S]*?\}/);
+
+    if (!jsonMatch) {
+      return res.status(200).json({
+        type: "unknown",
+        risk_level: "unknown",
+        explanation: resultText
+      });
+    }
+
+    const parsedResult = JSON.parse(jsonMatch[0]);
+
+    return res.status(200).json(parsedResult);
+
+  } catch (error) {
+
+    console.error("AI analysis error:", error);
+
+    return res.status(500).json({
+      error: "AI analysis failed"
+    });
+
+  }
 }
