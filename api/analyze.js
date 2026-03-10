@@ -1,0 +1,81 @@
+// /api/analyze.js
+import { NVIDIA_API_KEY } from '../config/apiKey.js';
+
+export default async function handler(req, res) {
+    // CORS configuration to allow requests from the browser extension
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight OPTIONS request
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    // Ensure request is POST
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const { clause } = req.body;
+
+    // 8. Error handling: return 400 if clause missing
+    if (!clause) {
+        return res.status(400).json({ error: 'clause missing' });
+    }
+
+    // 5. The backend should send the clause to the AI with this prompt
+    const prompt = `You are a privacy policy analyzer.
+Analyze the following clause and determine if it creates a privacy risk.
+
+Return JSON in this format:
+
+{
+"type": "data-sharing | data-collection | functionality | safe",
+"risk_level": "low | medium | high",
+"explanation": "simple explanation"
+}
+
+Clause:
+${clause}`;
+
+    try {
+        // 3. Call the NVIDIA NIM chat completion API
+        const response = await fetch('https://api.nvidia.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${NVIDIA_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'meta/llama3-8b-instruct',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.2, // Low temperature for more deterministic JSON output
+                max_tokens: 200
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`NVIDIA API responded with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const resultText = data.choices[0].message.content;
+
+        // Parse the JSON result returned by the LLM
+        // We attempt to find the JSON substring in case the model outputs extra text
+        const jsonMatch = resultText.match(/\{[\s\S]*?\}/);
+        if (!jsonMatch) {
+            throw new Error("Failed to parse JSON from AI response");
+        }
+
+        const parsedResult = JSON.parse(jsonMatch[0]);
+
+        // 6. Return the parsed JSON result to the extension
+        return res.status(200).json(parsedResult);
+    } catch (error) {
+        console.error('AI Analysis failed:', error);
+        // 8. Error handling: return 500 if API fails
+        return res.status(500).json({ error: 'API fails' });
+    }
+}
