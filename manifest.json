@@ -8,6 +8,12 @@
     "scripting",
     "storage"
   ],
+  "host_permissions": [
+    "https://privacy-policy-analyzer-seven.vercel.app/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://privacy-policy-analyzer-seven.vercel.app"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": "logo.png"
