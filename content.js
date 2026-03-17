@@ -68,9 +68,7 @@ const rules = [
 
 /* ─── Extract clauses ─── */
 function extractClauses() {
-  const container = document.body;
-
-  const paragraphs = Array.from(container.querySelectorAll('p'));
+  const paragraphs = Array.from(document.querySelectorAll('p'));
 
   return paragraphs
     .map(p => p.innerText.replace(/\s+/g, ' ').trim())
@@ -82,7 +80,9 @@ async function explainClause(clause) {
   try {
     const res = await fetch("https://privacy-policy-analyzer-seven.vercel.app/api/analyze", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ clause })
     });
 
@@ -117,15 +117,15 @@ async function analyzePolicy() {
 
     const ai = await explainClause(clause);
 
-    // ✅ USE AI IF VALID (no repetition)
+    // ✅ Use AI only if it's actually different
     if (
       ai &&
       ai.length > 8 &&
-      !ai.toLowerCase().includes(clause.substring(0, 40).toLowerCase())
+      !clause.toLowerCase().includes(ai.toLowerCase())
     ) {
       explanation = ai;
     } else {
-      // ✅ fallback = SHORT CLEAN CLAUSE (dynamic, not same)
+      // ✅ dynamic fallback (NOT same text)
       explanation = clause.split('. ')[0];
     }
 
@@ -158,6 +158,7 @@ async function analyzePolicy() {
   });
 }
 
+/* ─── Listener ─── */
 chrome.runtime.onMessage.addListener((req) => {
   if (req.action === "analyze") {
     analyzePolicy();
