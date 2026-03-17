@@ -50,19 +50,19 @@ const rules = [
     k: ['sell', 'sold', 'monetize'],
     type: 'Data Sale',
     risk: 'high',
-    simple: 'Your data may be sold.'
+    simple: 'Your data may be sold to companies.'
   },
   {
     k: ['retain', 'retention', 'store'],
     type: 'Data Retention',
     risk: 'medium',
-    simple: 'Your data may be stored long-term.'
+    simple: 'Your data may be stored for a long time.'
   },
   {
-    k: ['cookies', 'tracking'],
+    k: ['cookies', 'tracking', 'pixel'],
     type: 'Tracking',
     risk: 'medium',
-    simple: 'Your activity may be tracked.'
+    simple: 'Your activity may be tracked online.'
   }
 ];
 
@@ -90,7 +90,8 @@ async function explainClause(clause) {
 
     return data?.explanation || null;
 
-  } catch {
+  } catch (e) {
+    console.log("API error:", e);
     return null;
   }
 }
@@ -117,16 +118,11 @@ async function analyzePolicy() {
 
     const ai = await explainClause(clause);
 
-    // ✅ Use AI only if it's actually different
-    if (
-      ai &&
-      ai.length > 8 &&
-      !clause.toLowerCase().includes(ai.toLowerCase())
-    ) {
+    // ✅ FINAL FIX: ALWAYS USE AI IF AVAILABLE
+    if (ai && ai.length > 8) {
       explanation = ai;
     } else {
-      // ✅ dynamic fallback (NOT same text)
-      explanation = clause.split('. ')[0];
+      explanation = matchedRule.simple; // fallback (clean)
     }
 
     results.push({
