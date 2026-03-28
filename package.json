@@ -1,6 +1,6 @@
 {
   "name": "privacy-policy-analyzer",
-  "engines": { "node": "18.x" },
+  "engines": { "node": "24.x" },
   "version": "1.0.0",
   "description": "Simplified privacy policies using AI.",
   "main": "api/analyze.js",
