@@ -8,9 +8,7 @@
     "deploy": "vercel --prod"
   },
   "dependencies": {},
-  "devDependencies": {
-    "vercel": "latest"
-  },
+  "devDependencies": {},
   "keywords": [
     "privacy",
     "ai",
