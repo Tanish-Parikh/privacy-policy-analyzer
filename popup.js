@@ -107,6 +107,21 @@ function generateSummary(counts, grade, riskPct) {
 
   if (elements.summaryText) elements.summaryText.innerHTML = overview + findings;
 
+  // Detailed Risks
+  if (elements.detailedRisks && elements.detailedRisksList) {
+    const highRisks = data.filter(c => c.risk === 'high' || c.risk === 'medium').slice(0, 3);
+    elements.detailedRisks.classList.toggle('hidden', highRisks.length === 0);
+    elements.detailedRisksList.innerHTML = highRisks.map(c => `
+      <div class="risk-item">
+        <span class="risk-bullet" style="background:${riskMeta[c.risk].color}"></span>
+        <div class="risk-text">
+          <div class="risk-title">${c.type}</div>
+          <div class="risk-context">${c.text.substring(0, 40)}...</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
   // Recommendations
   if (elements.recSection) {
     elements.recSection.classList.remove('hidden');
