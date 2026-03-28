@@ -147,23 +147,25 @@ async function analyzePolicy() {
     if (matchedRule) matchedResults.push({ clause, matchedRule });
   }
 
-  // Limit to top 15 to avoid rate limits
-  const limitedResults = matchedResults.slice(0, 15);
+  // Sort by risk priority (high first) and take top 5 to stay within rate limits
+  const riskOrder = { high: 0, medium: 1, low: 2 };
+  const limitedResults = matchedResults
+    .sort((a, b) => riskOrder[a.matchedRule.risk] - riskOrder[b.matchedRule.risk])
+    .slice(0, 5);
 
-  // Call AI in parallel
-  const analysisPromises = limitedResults.map(async ({ clause, matchedRule }) => {
+  // Process SEQUENTIALLY so requests are naturally spaced (avoids 429 rate limit)
+  const results = [];
+  for (const { clause, matchedRule } of limitedResults) {
     let explanation = matchedRule.simple;
     const ai = await explainClause(clause);
-    if (ai && ai.length > 8) explanation = ai;
-    return {
+    if (ai && ai.length > 8 && !ai.startsWith('[Debug]')) explanation = ai;
+    results.push({
       text: clause,
       simple: explanation,
       type: matchedRule.type,
       risk: matchedRule.risk
-    };
-  });
-
-  const results = await Promise.all(analysisPromises);
+    });
+  }
 
   const fullText = clauses.join(' ');
   const score = flesch(fullText);

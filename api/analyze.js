@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     if (!process.env.GEMINI_API_KEY) {
         console.error('GEMINI_API_KEY is not set in environment variables');
-        return res.status(500).json({ explanation: '[Debug] API key missing on server.' });
+        return res.status(500).json({ explanation: 'Could not simplify this clause.' });
     }
 
     try {
@@ -41,14 +41,14 @@ export default async function handler(req, res) {
         if (!response.ok) {
             const errBody = await response.text();
             console.error(`Gemini API error ${response.status}:`, errBody);
-            return res.status(200).json({ explanation: `[Debug] Gemini HTTP ${response.status}` });
+            return res.status(200).json({ explanation: 'Could not simplify this clause.' });
         }
 
         const data = await response.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
         if (!text) {
-            return res.status(200).json({ explanation: '[Debug] Gemini returned empty response.' });
+            return res.status(200).json({ explanation: 'Could not simplify this clause.' });
         }
 
         return res.status(200).json({ explanation: text });
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     } catch (err) {
 
         console.error('GEMINI ERROR:', err.message || err);
-        return res.status(200).json({ explanation: `[Debug] Fetch error: ${err.message}` });
+        return res.status(200).json({ explanation: 'Could not simplify this clause.' });
 
     }
 }
