@@ -153,9 +153,12 @@ async function analyzePolicy() {
     .sort((a, b) => riskOrder[a.matchedRule.risk] - riskOrder[b.matchedRule.risk])
     .slice(0, 5);
 
-  // Process SEQUENTIALLY so requests are naturally spaced (avoids 429 rate limit)
+  // Process SEQUENTIALLY with delay to respect Gemini free-tier rate limits
   const results = [];
-  for (const { clause, matchedRule } of limitedResults) {
+  for (let i = 0; i < limitedResults.length; i++) {
+    const { clause, matchedRule } = limitedResults[i];
+    // Add delay between requests (except the first) to avoid 429
+    if (i > 0) await new Promise(r => setTimeout(r, 1200));
     let explanation = matchedRule.simple;
     const ai = await explainClause(clause);
     if (ai && ai.length > 8 && !ai.startsWith('[Debug]')) explanation = ai;
