@@ -142,7 +142,9 @@ async function analyzePolicy() {
   const grade = fleschGrade(score);
 
   const riskScore = results.reduce((s, c) => s + riskWeights[c.risk], 0);
-  const privacyRiskPct = Math.min(100, Math.round((riskScore / 100) * 100));
+  // MAX_RISK_SCORE: 30 medium clauses × 5 = 150 is a realistic ceiling
+  const MAX_RISK_SCORE = 150;
+  const privacyRiskPct = Math.min(100, Math.round((riskScore / MAX_RISK_SCORE) * 100));
 
   const riskCategory =
     privacyRiskPct > 60 ? "High Risk" :
