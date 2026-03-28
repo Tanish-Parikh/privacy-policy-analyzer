@@ -41,38 +41,75 @@ const riskWeights = { high: 9, medium: 5, low: 2 };
 /* ─── Rule engine ─── */
 const rules = [
   {
-    k: ['share', 'disclosure', 'disclose'],
+    k: ['share', 'disclosure', 'disclose', 'third party', 'third-party', 'partners'],
     type: 'Data Sharing',
     risk: 'medium',
     simple: 'Your data may be shared with others.'
   },
   {
-    k: ['sell', 'sold', 'monetize'],
+    k: ['sell', 'sold', 'monetize', 'commercial'],
     type: 'Data Sale',
     risk: 'high',
     simple: 'Your data may be sold to companies.'
   },
   {
-    k: ['retain', 'retention', 'store'],
+    k: ['retain', 'retention', 'store', 'keep', 'period'],
     type: 'Data Retention',
     risk: 'medium',
     simple: 'Your data may be stored for a long time.'
   },
   {
-    k: ['cookies', 'tracking', 'pixel'],
+    k: ['cookies', 'tracking', 'pixel', 'beacon', 'fingerprint'],
     type: 'Tracking',
     risk: 'medium',
     simple: 'Your activity may be tracked online.'
+  },
+  {
+    k: ['collect', 'collection', 'gather', 'obtain'],
+    type: 'Data Collection',
+    risk: 'medium',
+    simple: 'The service collects your personal data.'
+  },
+  {
+    k: ['location', 'gps', 'geolocation'],
+    type: 'Location Data',
+    risk: 'high',
+    simple: 'Your location data may be tracked.'
+  },
+  {
+    k: ['advertising', 'ads', 'targeted', 'marketing'],
+    type: 'Advertising',
+    risk: 'medium',
+    simple: 'Your data may be used for targeted advertising.'
+  },
+  {
+    k: ['delete', 'deletion', 'opt-out', 'opt out', 'withdraw'],
+    type: 'User Rights',
+    risk: 'low',
+    simple: 'You have the right to delete or opt out of data collection.'
+  },
+  {
+    k: ['security', 'encrypt', 'protect', 'safeguard'],
+    type: 'Security',
+    risk: 'low',
+    simple: 'Your data is protected with security measures.'
   }
 ];
 
-/* ─── Extract clauses ─── */
+/* ─── Extract clauses (p AND li, deduped, up to 600 chars) ─── */
 function extractClauses() {
-  const paragraphs = Array.from(document.querySelectorAll('p'));
+  const seen = new Set();
+  const results = [];
 
-  return paragraphs
-    .map(p => p.innerText.replace(/\s+/g, ' ').trim())
-    .filter(t => t.length > 50 && t.length < 400);
+  document.querySelectorAll('p, li').forEach(el => {
+    const text = el.innerText.replace(/\s+/g, ' ').trim();
+    if (text.length > 40 && text.length < 600 && !seen.has(text)) {
+      seen.add(text);
+      results.push(text);
+    }
+  });
+
+  return results;
 }
 
 /* ─── API call ─── */
@@ -80,16 +117,11 @@ async function explainClause(clause) {
   try {
     const res = await fetch("https://privacy-policy-analyzer-seven.vercel.app/api/analyze", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clause })
     });
-
     const data = await res.json();
-
     return data?.explanation || null;
-
   } catch (e) {
     console.log("API error:", e);
     return null;
@@ -98,10 +130,12 @@ async function explainClause(clause) {
 
 /* ─── MAIN ANALYSIS ─── */
 async function analyzePolicy() {
+  // Clear old results immediately so popup doesn't show stale data
+  chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
+
   const clauses = extractClauses();
   const matchedResults = [];
 
-  // 1. Identify clauses that match rules
   for (const clause of clauses) {
     let matchedRule = null;
     for (const r of rules) {
@@ -110,23 +144,17 @@ async function analyzePolicy() {
         break;
       }
     }
-    if (matchedRule) {
-      matchedResults.push({ clause, matchedRule });
-    }
+    if (matchedRule) matchedResults.push({ clause, matchedRule });
   }
 
-  // 2. Limit to top 15 matches to avoid rate limits/latency
+  // Limit to top 15 to avoid rate limits
   const limitedResults = matchedResults.slice(0, 15);
 
-  // 3. Call AI in parallel for those clauses
+  // Call AI in parallel
   const analysisPromises = limitedResults.map(async ({ clause, matchedRule }) => {
     let explanation = matchedRule.simple;
     const ai = await explainClause(clause);
-
-    if (ai && ai.length > 8) {
-      explanation = ai;
-    }
-
+    if (ai && ai.length > 8) explanation = ai;
     return {
       text: clause,
       simple: explanation,
@@ -137,32 +165,22 @@ async function analyzePolicy() {
 
   const results = await Promise.all(analysisPromises);
 
-  const fullText = clauses.join(" ");
+  const fullText = clauses.join(' ');
   const score = flesch(fullText);
   const grade = fleschGrade(score);
 
   const riskScore = results.reduce((s, c) => s + riskWeights[c.risk], 0);
-  // MAX_RISK_SCORE: 30 medium clauses × 5 = 150 is a realistic ceiling
   const MAX_RISK_SCORE = 150;
   const privacyRiskPct = Math.min(100, Math.round((riskScore / MAX_RISK_SCORE) * 100));
 
   const riskCategory =
-    privacyRiskPct > 60 ? "High Risk" :
-      privacyRiskPct > 30 ? "Moderate Risk" :
-        "Low Risk";
+    privacyRiskPct > 60 ? 'High Risk' :
+    privacyRiskPct > 30 ? 'Moderate Risk' : 'Low Risk';
 
-  chrome.storage.local.set({
-    clauses: results,
-    score,
-    grade,
-    privacyRiskPct,
-    riskCategory
-  });
+  chrome.storage.local.set({ clauses: results, score, grade, privacyRiskPct, riskCategory });
 }
 
 /* ─── Listener ─── */
 chrome.runtime.onMessage.addListener((req) => {
-  if (req.action === "analyze") {
-    analyzePolicy();
-  }
+  if (req.action === 'analyze') analyzePolicy();
 });

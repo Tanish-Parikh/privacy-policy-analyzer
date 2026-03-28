@@ -89,13 +89,24 @@ function generateSummary(counts, grade, riskPct) {
   
   if (elements.riskPanel) {
     elements.riskPanel.classList.remove('hidden');
-    if (elements.riskPct) elements.riskPct.textContent = riskPct;
-    if (elements.riskBarFill) elements.riskBarFill.style.width = `${riskPct}%`;
-    
+    if (elements.riskPct) {
+      elements.riskPct.textContent = riskPct;
+      elements.riskPct.style.color = riskPct > 60 ? '#f87171' : riskPct > 30 ? '#fbbf24' : '#34d399';
+    }
+    if (elements.riskBarFill) {
+      elements.riskBarFill.style.width = `${riskPct}%`;
+      elements.riskBarFill.style.background = riskPct > 60 ? '#f87171' : riskPct > 30 ? '#fbbf24' : '#34d399';
+      elements.riskBarFill.style.boxShadow = riskPct > 60
+        ? '0 0 8px rgba(248,113,113,0.5)'
+        : riskPct > 30 ? '0 0 8px rgba(251,191,36,0.5)' : '0 0 8px rgba(52,211,153,0.5)';
+    }
     if (elements.riskCategory) {
       const cat = riskPct > 60 ? 'High Risk' : riskPct > 30 ? 'Moderate' : 'Low Risk';
       elements.riskCategory.textContent = cat;
-      elements.riskCategory.className = 'risk-category-badge ' + (riskPct > 60 ? 'high' : riskPct > 30 ? 'medium' : 'low');
+      const colorClass = riskPct > 60 ? 'high' : riskPct > 30 ? 'medium' : 'low';
+      elements.riskCategory.className = 'risk-category-badge ' + colorClass;
+      elements.riskCategory.style.color = riskPct > 60 ? '#f87171' : riskPct > 30 ? '#fbbf24' : '#34d399';
+      elements.riskCategory.style.borderColor = riskPct > 60 ? 'rgba(248,113,113,0.3)' : riskPct > 30 ? 'rgba(251,191,36,0.3)' : 'rgba(52,211,153,0.3)';
     }
   }
 
