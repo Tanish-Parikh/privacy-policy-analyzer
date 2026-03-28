@@ -99,39 +99,43 @@ async function explainClause(clause) {
 /* ─── MAIN ANALYSIS ─── */
 async function analyzePolicy() {
   const clauses = extractClauses();
-  const results = [];
+  const matchedResults = [];
 
+  // 1. Identify clauses that match rules
   for (const clause of clauses) {
-
     let matchedRule = null;
-
     for (const r of rules) {
       if (r.k.some(k => clause.toLowerCase().includes(k))) {
         matchedRule = r;
         break;
       }
     }
+    if (matchedRule) {
+      matchedResults.push({ clause, matchedRule });
+    }
+  }
 
-    if (!matchedRule) continue;
+  // 2. Limit to top 15 matches to avoid rate limits/latency
+  const limitedResults = matchedResults.slice(0, 15);
 
+  // 3. Call AI in parallel for those clauses
+  const analysisPromises = limitedResults.map(async ({ clause, matchedRule }) => {
     let explanation = matchedRule.simple;
-
     const ai = await explainClause(clause);
 
-    // ✅ FINAL FIX: ALWAYS USE AI IF AVAILABLE
     if (ai && ai.length > 8) {
       explanation = ai;
-    } else {
-      explanation = matchedRule.simple; // fallback (clean)
     }
 
-    results.push({
+    return {
       text: clause,
       simple: explanation,
       type: matchedRule.type,
       risk: matchedRule.risk
-    });
-  }
+    };
+  });
+
+  const results = await Promise.all(analysisPromises);
 
   const fullText = clauses.join(" ");
   const score = flesch(fullText);
