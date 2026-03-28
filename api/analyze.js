@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     if (!process.env.GEMINI_API_KEY) {
         console.error('GEMINI_API_KEY is not set in environment variables');
-        return res.status(500).json({ explanation: 'Could not simplify this clause.' });
+        return res.status(500).json({ explanation: '[Debug] API key missing on server.' });
     }
 
     try {
@@ -31,30 +31,24 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: `You are a privacy policy simplifier. Rewrite the following privacy policy clause into ONE clear, plain-English sentence that a normal person can understand. Be direct and specific about what data is collected or shared. Do not add any intro like "This clause means". Just write the simplified sentence.\n\nClause: ${clause}`
+                        text: `Rewrite the following privacy policy clause into ONE clear, plain-English sentence. Be direct about what data is collected or shared.\n\nClause: ${clause}`
                     }]
                 }],
-                generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 80
-                }
+                generationConfig: { temperature: 0.2, maxOutputTokens: 80 }
             })
         });
 
         if (!response.ok) {
             const errBody = await response.text();
             console.error(`Gemini API error ${response.status}:`, errBody);
-            throw new Error(`Gemini returned ${response.status}`);
+            return res.status(200).json({ explanation: `[Debug] Gemini HTTP ${response.status}` });
         }
 
         const data = await response.json();
-
-        console.log('GEMINI RESPONSE:', JSON.stringify(data).slice(0, 200));
-
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
         if (!text) {
-            throw new Error('Empty response from Gemini');
+            return res.status(200).json({ explanation: '[Debug] Gemini returned empty response.' });
         }
 
         return res.status(200).json({ explanation: text });
@@ -62,8 +56,7 @@ export default async function handler(req, res) {
     } catch (err) {
 
         console.error('GEMINI ERROR:', err.message || err);
-
-        return res.status(200).json({ explanation: 'Could not simplify this clause.' });
+        return res.status(200).json({ explanation: `[Debug] Fetch error: ${err.message}` });
 
     }
 }
