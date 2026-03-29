@@ -16,8 +16,8 @@ export default async function handler(req, res) {
         return res.status(500).json({ explanations: clauses.map(() => null) });
     }
 
-    // Switch to 1.5-flash for better stability/limits on free tier
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    // Updated to Gemini 2.5 Flash as per latest availability in 2026
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const prompt = `You are a privacy policy expert. Rewrite each of the following privacy policy clauses into ONE clear, plain-English sentence. Be direct about what data is collected or shared.
 Return ONLY a valid JSON array of strings, one string per clause, in the same order. No extra text, no markdown.
