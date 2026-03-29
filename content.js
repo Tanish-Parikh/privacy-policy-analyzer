@@ -112,31 +112,24 @@ function extractClauses() {
   return results;
 }
 
-/* ─── Batch API call: all clauses in one request ─── */
-async function explainClauses(clauses) {
-  try {
-    const res = await fetch("https://privacy-policy-analyzer-seven.vercel.app/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clauses })
+/* ─── Batch API call via Background script ─── */
+function explainClauses(clauses) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ 
+      type: "EXPLAIN_CLAUSES", 
+      clauses 
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("[Analyzer] Background script connection error:", chrome.runtime.lastError);
+        resolve(clauses.map(() => null));
+      } else if (response && response.success) {
+        resolve(response.evaluations);
+      } else {
+        console.warn("[Analyzer] Background fetch failed:", response?.error);
+        resolve(clauses.map(() => null));
+      }
     });
-    console.log(`[Analyzer] API responded with HTTP ${res.status}`);
-    const rawText = await res.text();
-    console.log(`[Analyzer] Raw API response:`, rawText);
-    let data;
-    try { data = JSON.parse(rawText); } catch(e) {
-      console.error('[Analyzer] Failed to parse API response as JSON:', rawText);
-      return clauses.map(() => null);
-    }
-    if (!Array.isArray(data?.explanations)) {
-      console.warn('[Analyzer] API did not return an explanations array. Got:', data);
-      return clauses.map(() => null);
-    }
-    return data.explanations;
-  } catch (e) {
-    console.error("[Analyzer] Batch API fetch error:", e);
-    return clauses.map(() => null);
-  }
+  });
 }
 
 /* ─── MAIN ANALYSIS ─── */
@@ -164,11 +157,11 @@ async function analyzePolicy() {
     .sort((a, b) => riskOrder[a.matchedRule.risk] - riskOrder[b.matchedRule.risk])
     .slice(0, 4);
 
-  // Send ALL clauses in ONE batch API call (avoids rate limits entirely)
-  console.log(`[Analyzer] Sending ${limitedResults.length} clauses in a single batch request...`);
+  // Send ALL clauses in ONE batch API call via background script
+  console.log(`[Analyzer] Requesting batch explanation via background script...`);
   const clauseTexts = limitedResults.map(r => r.clause);
   const aiExplanations = await explainClauses(clauseTexts);
-  console.log(`[Analyzer] Batch response received.`);
+  console.log(`[Analyzer] Background response received.`);
 
   const results = limitedResults.map(({ clause, matchedRule }, i) => {
     const ai = aiExplanations[i];

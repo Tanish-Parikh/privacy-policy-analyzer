@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Privacy Policy Analysis",
-  "version": "8.1",
-  "description": "Single-screen UI privacy policy analyzer (Centered Gauge Fix).",
+  "version": "8.2",
+  "description": "Privacy policy analyzer with background fetching to bypass CSP.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -11,8 +11,8 @@
   "host_permissions": [
     "https://privacy-policy-analyzer-seven.vercel.app/*"
   ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://privacy-policy-analyzer-seven.vercel.app"
+  "background": {
+    "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
@@ -21,7 +21,8 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "http://*/*",
+        "https://*/*"
       ],
       "js": [
         "content.js"
