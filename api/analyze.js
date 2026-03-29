@@ -16,27 +16,30 @@ export default async function handler(req, res) {
         return res.status(500).json({ explanations: clauses.map(() => null) });
     }
 
-    // Updated to Gemini 2.5 Flash as per latest availability in 2026
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-    const prompt = `You are a privacy policy expert. Rewrite each of the following privacy policy clauses into ONE clear, plain-English sentence. Be direct about what data is collected or shared.
-Return ONLY a valid JSON array of strings, one string per clause, in the same order. No extra text, no markdown.
+    const prompt = `You are a privacy policy expert.
+Generate a JSON object with a key "explanations" containing an array of strings.
+Each string should be a one-sentence, plain-English simplification of the corresponding clause below.
 
-Clauses:
+Clauses to analyze:
 ${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
 
     const body = JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 800 }
+        generationConfig: { 
+            temperature: 0.1, 
+            maxOutputTokens: 1000,
+            response_mime_type: "application/json"
+        }
     });
 
-    // Server-side retry logic with exponential backoff
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
             if (attempt > 0) {
                 console.log(`[Backend] Retry attempt ${attempt}...`);
-                await new Promise(r => setTimeout(r, 2000 * attempt)); // Wait 2s, then 4s
+                await new Promise(r => setTimeout(r, 2000 * attempt));
             }
 
             const response = await fetch(url, {
@@ -47,7 +50,7 @@ ${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
 
             if (response.status === 429) {
                 lastError = "Rate limit exceeded (429)";
-                continue; // Try again
+                continue;
             }
 
             if (!response.ok) {
@@ -57,12 +60,12 @@ ${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
             }
 
             const data = await response.json();
-            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
-            if (!rawText) return res.status(200).json({ explanations: clauses.map(() => null) });
+            if (!text) return res.status(200).json({ explanations: clauses.map(() => null) });
 
-            const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-            const explanations = JSON.parse(jsonText);
+            const parsed = JSON.parse(text);
+            const explanations = Array.isArray(parsed) ? parsed : (parsed.explanations || []);
             
             return res.status(200).json({ 
                 explanations: clauses.map((_, i) => (typeof explanations[i] === 'string' && explanations[i].length > 5) ? explanations[i] : null) 
@@ -74,7 +77,6 @@ ${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
         }
     }
 
-    // If we get here, all retries failed
     return res.status(200).json({ 
         error: lastError,
         explanations: clauses.map(() => null) 
