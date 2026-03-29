@@ -112,19 +112,19 @@ function extractClauses() {
   return results;
 }
 
-/* ─── API call ─── */
-async function explainClause(clause) {
+/* ─── Batch API call: all clauses in one request ─── */
+async function explainClauses(clauses) {
   try {
     const res = await fetch("https://privacy-policy-analyzer-seven.vercel.app/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clause })
+      body: JSON.stringify({ clauses })
     });
     const data = await res.json();
-    return data?.explanation || null;
+    return Array.isArray(data?.explanations) ? data.explanations : clauses.map(() => null);
   } catch (e) {
-    console.log("API error:", e);
-    return null;
+    console.error("Batch API error:", e);
+    return clauses.map(() => null);
   }
 }
 
@@ -147,28 +147,30 @@ async function analyzePolicy() {
     if (matchedRule) matchedResults.push({ clause, matchedRule });
   }
 
-  // Sort by risk priority (high first) and take top 5 to stay within rate limits
+  // Sort by risk priority (high first) and take top 4 to stay within rate limits
   const riskOrder = { high: 0, medium: 1, low: 2 };
   const limitedResults = matchedResults
     .sort((a, b) => riskOrder[a.matchedRule.risk] - riskOrder[b.matchedRule.risk])
-    .slice(0, 5);
+    .slice(0, 4);
 
-  // Process SEQUENTIALLY with delay to respect Gemini free-tier rate limits
-  const results = [];
-  for (let i = 0; i < limitedResults.length; i++) {
-    const { clause, matchedRule } = limitedResults[i];
-    // Add delay between requests (except the first) to avoid 429
-    if (i > 0) await new Promise(r => setTimeout(r, 1200));
-    let explanation = matchedRule.simple;
-    const ai = await explainClause(clause);
-    if (ai && ai.length > 8 && !ai.startsWith('[Debug]')) explanation = ai;
-    results.push({
+  // Send ALL clauses in ONE batch API call (avoids rate limits entirely)
+  console.log(`[Analyzer] Sending ${limitedResults.length} clauses in a single batch request...`);
+  const clauseTexts = limitedResults.map(r => r.clause);
+  const aiExplanations = await explainClauses(clauseTexts);
+  console.log(`[Analyzer] Batch response received.`);
+
+  const results = limitedResults.map(({ clause, matchedRule }, i) => {
+    const ai = aiExplanations[i];
+    const explanation = (ai && ai.length > 8) ? ai : matchedRule.simple;
+    if (!ai) console.warn(`[Analyzer] No AI explanation for clause ${i + 1}, using fallback.`);
+    return {
       text: clause,
       simple: explanation,
       type: matchedRule.type,
       risk: matchedRule.risk
-    });
-  }
+    };
+  });
+  console.log(`[Analyzer] Finished processing ${results.length} clauses.`);
 
   const fullText = clauses.join(' ');
   const score = flesch(fullText);
