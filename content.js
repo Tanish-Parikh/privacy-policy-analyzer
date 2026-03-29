@@ -120,10 +120,21 @@ async function explainClauses(clauses) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clauses })
     });
-    const data = await res.json();
-    return Array.isArray(data?.explanations) ? data.explanations : clauses.map(() => null);
+    console.log(`[Analyzer] API responded with HTTP ${res.status}`);
+    const rawText = await res.text();
+    console.log(`[Analyzer] Raw API response:`, rawText);
+    let data;
+    try { data = JSON.parse(rawText); } catch(e) {
+      console.error('[Analyzer] Failed to parse API response as JSON:', rawText);
+      return clauses.map(() => null);
+    }
+    if (!Array.isArray(data?.explanations)) {
+      console.warn('[Analyzer] API did not return an explanations array. Got:', data);
+      return clauses.map(() => null);
+    }
+    return data.explanations;
   } catch (e) {
-    console.error("Batch API error:", e);
+    console.error("[Analyzer] Batch API fetch error:", e);
     return clauses.map(() => null);
   }
 }
