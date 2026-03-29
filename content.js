@@ -114,18 +114,19 @@ function extractClauses() {
 
 /* ─── Batch API call via Background script ─── */
 function explainClauses(clauses) {
+  const time = new Date().toLocaleTimeString();
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ 
       type: "EXPLAIN_CLAUSES", 
       clauses 
     }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error("[Analyzer] Background script connection error:", chrome.runtime.lastError);
+        console.error(`[${time}][Analyzer] Background error:`, chrome.runtime.lastError.message);
         resolve(clauses.map(() => null));
       } else if (response && response.success) {
         resolve(response.evaluations);
       } else {
-        console.warn("[Analyzer] Background fetch failed:", response?.error);
+        console.warn(`[${time}][Analyzer] Background fetch failed:`, response?.error);
         resolve(clauses.map(() => null));
       }
     });
@@ -134,6 +135,8 @@ function explainClauses(clauses) {
 
 /* ─── MAIN ANALYSIS ─── */
 async function analyzePolicy() {
+  const time = new Date().toLocaleTimeString();
+  
   // Clear old results immediately so popup doesn't show stale data
   chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
 
@@ -158,15 +161,15 @@ async function analyzePolicy() {
     .slice(0, 4);
 
   // Send ALL clauses in ONE batch API call via background script
-  console.log(`[Analyzer] Requesting batch explanation via background script...`);
+  console.log(`[${time}][Analyzer] Requesting batch explanation via background script...`);
   const clauseTexts = limitedResults.map(r => r.clause);
   const aiExplanations = await explainClauses(clauseTexts);
-  console.log(`[Analyzer] Background response received.`);
+  console.log(`[${time}][Analyzer] Background response received.`);
 
   const results = limitedResults.map(({ clause, matchedRule }, i) => {
     const ai = aiExplanations[i];
     const explanation = (ai && ai.length > 8) ? ai : matchedRule.simple;
-    if (!ai) console.warn(`[Analyzer] No AI explanation for clause ${i + 1}, using fallback.`);
+    if (!ai) console.warn(`[${time}][Analyzer] No AI explanation for clause ${i + 1}, using fallback.`);
     return {
       text: clause,
       simple: explanation,
@@ -174,7 +177,7 @@ async function analyzePolicy() {
       risk: matchedRule.risk
     };
   });
-  console.log(`[Analyzer] Finished processing ${results.length} clauses.`);
+  console.log(`[${time}][Analyzer] Finished processing ${results.length} clauses.`);
 
   const fullText = clauses.join(' ');
   const score = flesch(fullText);
