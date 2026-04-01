@@ -154,11 +154,11 @@ async function analyzePolicy() {
     if (matchedRule) matchedResults.push({ clause, matchedRule });
   }
 
-  // Sort by risk priority (high first) and take top 4 to stay within rate limits
+  // Sort by risk priority (high first) and take top 50 to provide deep analysis
   const riskOrder = { high: 0, medium: 1, low: 2 };
   const limitedResults = matchedResults
     .sort((a, b) => riskOrder[a.matchedRule.risk] - riskOrder[b.matchedRule.risk])
-    .slice(0, 4);
+    .slice(0, 50);
 
   // Send ALL clauses in ONE batch API call via background script
   console.log(`[${time}][Analyzer] Requesting batch explanation via background script...`);
@@ -184,8 +184,11 @@ async function analyzePolicy() {
   const grade = fleschGrade(score);
 
   const riskScore = results.reduce((s, c) => s + riskWeights[c.risk], 0);
-  const MAX_RISK_SCORE = 150;
-  const privacyRiskPct = Math.min(100, Math.round((riskScore / MAX_RISK_SCORE) * 100));
+  
+  // Dynamic Max Risk: A score of 150+ is High Risk, 450+ is Critical.
+  // We use 450 as the denominator for 100% risk visualization.
+  const TOTAL_CEILING = 450; 
+  const privacyRiskPct = Math.min(100, Math.round((riskScore / TOTAL_CEILING) * 100));
 
   const riskCategory =
     privacyRiskPct > 60 ? 'High Risk' :

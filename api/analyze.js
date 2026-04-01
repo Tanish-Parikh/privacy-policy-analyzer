@@ -18,9 +18,14 @@ export default async function handler(req, res) {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-    const prompt = `You are a privacy policy expert.
-Generate a JSON object with a key "explanations" containing an array of strings.
-Each string should be a one-sentence, plain-English simplification of the corresponding clause below.
+    const prompt = `You are a privacy policy expert specializing in legal simplification.
+Generate a JSON object with a key "explanations" containing an array of exactly ${clauses.length} strings.
+
+Rules:
+1. Each string must be a one-sentence, plain-English summary of the corresponding clause.
+2. Keep the responses concise but informative.
+3. The array length MUST match the input count (${clauses.length}).
+4. Do not include any extra text outside the JSON object.
 
 Clauses to analyze:
 ${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
@@ -29,7 +34,7 @@ ${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { 
             temperature: 0.1, 
-            maxOutputTokens: 1000,
+            maxOutputTokens: 4096,
             response_mime_type: "application/json"
         }
     });
