@@ -27,7 +27,9 @@ const elements = {
   recTitle: document.getElementById('rec-title'),
   recDesc: document.getElementById('rec-desc'),
   detailedRisks: document.getElementById('detailed-risks-section'),
-  detailedRisksList: document.getElementById('detailed-risks-list')
+  detailedRisksList: document.getElementById('detailed-risks-list'),
+  loadingTitle: document.getElementById('loading-title'),
+  loadingDesc: document.getElementById('loading-desc')
 };
 
 /* ───────── Background Connection ───────── */
@@ -224,6 +226,20 @@ async function analyzePolicy() {
   // Show loading state
   if (elements.loadingView) elements.loadingView.classList.remove('hidden');
 
+  // Cycle loading messages for better feedback
+  const statuses = [
+    { t: "Scanning Content...", d: "Identifying paragraphs and extracting text." },
+    { t: "Identifying Risks...", d: "Mapping clauses to privacy rules and risk levels." },
+    { t: "Simplifying with AI...", d: "Asking Gemini to translate legal jargon to plain English." },
+    { t: "Calculating Score...", d: "Finalizing the risk profile and readability grade." }
+  ];
+  let sIdx = 0;
+  const statusInterval = setInterval(() => {
+    sIdx = (sIdx + 1) % statuses.length;
+    if (elements.loadingTitle) elements.loadingTitle.textContent = statuses[sIdx].t;
+    if (elements.loadingDesc) elements.loadingDesc.textContent = statuses[sIdx].d;
+  }, 4000);
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
     await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
@@ -238,6 +254,7 @@ async function analyzePolicy() {
       // Check if analysis is complete or errored
       if (d.score !== undefined || d.error) {
         clearInterval(poll);
+        clearInterval(statusInterval);
         data = d.clauses || [];
         
         // Hide loading state
