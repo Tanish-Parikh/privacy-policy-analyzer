@@ -13,7 +13,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .then(async res => {
       console.log(`[${time}][Background] API Status: ${res.status}`);
       const text = await res.text();
-      console.log(`[${time}][Background] Raw Body: ${text.substring(0, 500)}`);
       
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
       
@@ -30,3 +29,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
 });
+
+// Clear cache when popup is closed
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "popup") {
+    port.onDisconnect.addListener(() => {
+      const time = new Date().toLocaleTimeString();
+      console.log(`[${time}][Background] Popup closed. Clearing analysis cache.`);
+      chrome.storage.local.get('theme', (res) => {
+        chrome.storage.local.clear(() => {
+          if (res.theme) chrome.storage.local.set({ theme: res.theme });
+        });
+      });
+    });
+  }
+});
+

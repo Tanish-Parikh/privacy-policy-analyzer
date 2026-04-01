@@ -23,6 +23,59 @@
   --accent-glow: rgba(124, 58, 237, 0.3);
 }
 
+/* ───── Loading Overlay ───── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-color);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 30px;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.loading-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-content h2 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 20px;
+  background: linear-gradient(90deg, #c4b5fd, #67e8f9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.loader-content p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 280px;
+  margin: 10px auto 0;
+  line-height: 1.5;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid var(--border-color);
+  border-top: 4px solid #7c3aed;
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: rotate 1s linear infinite;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.2);
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 body.light-theme {
   --bg-color: #f3f4f6;
   --panel-bg: rgba(0, 0, 0, 0.03);
@@ -191,6 +244,7 @@ body.light-theme #sun-icon {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
 
 /* ───── Gauge ───── */
 .gauge-wrap {
