@@ -10,7 +10,6 @@ const riskMeta = {
 
 /* ───────── UI Elements ───────── */
 const elements = {
-  analyzeBtn: document.getElementById('analyze'),
   cardsBox: document.getElementById('cards'),
   summaryView: document.getElementById('summary-view'),
   scoreEl: document.getElementById('score'),
@@ -214,49 +213,40 @@ function render(filter) {
   }
 }
 
-/* ───────── Analyze ───────── */
-if (elements.analyzeBtn) {
-  elements.analyzeBtn.onclick = async () => {
-    elements.analyzeBtn.classList.add('loading');
-    elements.analyzeBtn.innerHTML = '⏳ Analyzing…';
+/* ───────── Analyze Function ───────── */
+async function analyzePolicy() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  try {
+    await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    await new Promise(r => setTimeout(r, 250));
+    await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
+  }
 
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
-    } catch {
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-      await new Promise(r => setTimeout(r, 250));
-      await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
-    }
-
-    const poll = setInterval(() => {
-      chrome.storage.local.get(null, d => {
-        if (d.score !== undefined || d.error) {
-          clearInterval(poll);
-          data = d.clauses || [];
-          if (!d.score) {
-            elements.analyzeBtn.classList.remove('loading');
-            elements.analyzeBtn.innerHTML = '🔍 Analyze Policy';
-            return;
-          }
-
-          const counts = {
-            high: data.filter(c => c.risk === 'high').length,
-            medium: data.filter(c => c.risk === 'medium').length,
-            low: data.filter(c => c.risk === 'low').length
-          };
-
-          updateGauge(d.score);
-          renderRiskChart(counts);
-          generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
-
-          elements.analyzeBtn.classList.remove('loading');
-          elements.analyzeBtn.innerHTML = '🔍 Analyze Policy';
-          render('summary');
+  const poll = setInterval(() => {
+    chrome.storage.local.get(null, d => {
+      if (d.score !== undefined || d.error) {
+        clearInterval(poll);
+        data = d.clauses || [];
+        if (!d.score) {
+          return;
         }
-      });
-    }, 400);
-  };
+
+        const counts = {
+          high: data.filter(c => c.risk === 'high').length,
+          medium: data.filter(c => c.risk === 'medium').length,
+          low: data.filter(c => c.risk === 'low').length
+        };
+
+        updateGauge(d.score);
+        renderRiskChart(counts);
+        generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
+
+        render('summary');
+      }
+    });
+  }, 400);
 }
 
 /* ───────── Tabs ───────── */
@@ -313,7 +303,7 @@ function initTheme() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  // Restore state if exists
+  // Restore state if exists, otherwise analyze automatically
   chrome.storage.local.get(null, d => {
     if (d.score) {
       data = d.clauses || [];
@@ -326,6 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderRiskChart(counts);
       generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
       render('summary');
+    } else {
+      // Automatically analyze when popup opens
+      analyzePolicy();
     }
   });
 });
