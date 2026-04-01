@@ -154,11 +154,31 @@ async function analyzePolicy() {
     if (matchedRule) matchedResults.push({ clause, matchedRule });
   }
 
-  // Sort by risk priority (high first) and take top 20 to balance depth and speed
-  const riskOrder = { high: 0, medium: 1, low: 2 };
-  const limitedResults = matchedResults
-    .sort((a, b) => riskOrder[a.matchedRule.risk] - riskOrder[b.matchedRule.risk])
-    .slice(0, 20);
+  // Balanced Distribution Logic: Ensure High, Med, and Low are all represented (Total limit: 20)
+  const high = matchedResults.filter(r => r.matchedRule.risk === 'high');
+  const med = matchedResults.filter(r => r.matchedRule.risk === 'medium');
+  const low = matchedResults.filter(r => r.matchedRule.risk === 'low');
+
+  const MAX_TOTAL = 20;
+  const PER_BUCKET = Math.floor(MAX_TOTAL / 3); // Roughly 6-7 each
+
+  // Take a baseline from each bucket
+  let balanced = [
+    ...high.slice(0, PER_BUCKET),
+    ...med.slice(0, PER_BUCKET),
+    ...low.slice(0, PER_BUCKET)
+  ];
+
+  // Fill remaining slots with whatever is left (prioritizing high > medium > low)
+  const used = new Set(balanced);
+  const remaining = matchedResults
+    .filter(r => !used.has(r))
+    .sort((a, b) => {
+      const order = { high: 0, medium: 1, low: 2 };
+      return order[a.matchedRule.risk] - order[b.matchedRule.risk];
+    });
+
+  const limitedResults = balanced.concat(remaining.slice(0, MAX_TOTAL - balanced.length));
 
   // Send ALL clauses in ONE batch API call via background script
   console.log(`[${time}][Analyzer] Requesting batch explanation via background script...`);
