@@ -229,8 +229,8 @@ async function analyzePolicy() {
   // Cycle loading messages for better feedback
   const statuses = [
     { t: "Scanning Content...", d: "Identifying paragraphs and extracting text." },
-    { t: "Identifying Risks...", d: "Mapping clauses to privacy rules and risk levels." },
-    { t: "Simplifying with AI...", d: "Asking Gemini to translate legal jargon to plain English." },
+    { t: "Identifying Risks...", d: "Scanning for privacy risks and simplifying complex clauses." },
+    { t: "Simplifying Clauses...", d: "Translating legal terminology into plain English." },
     { t: "Calculating Score...", d: "Finalizing the risk profile and readability grade." }
   ];
   let sIdx = 0;
