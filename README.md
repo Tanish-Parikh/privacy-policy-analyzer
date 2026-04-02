@@ -106,4 +106,4 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 - **Developer:** [Tanish Parikh](https://github.com/Tanish-Parikh)
 
-Built with ❤️ by Tanish Parikh
+From idea to reality by Tanish Parikh
