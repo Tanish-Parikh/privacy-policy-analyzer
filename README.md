@@ -3,7 +3,6 @@
 
 **Privacy Policy Analyzer** is a modern, full-stack browser extension designed to help users navigate the complex landscape of digital privacy. Built with **Vanilla JavaScript**, **Vercel Serverless Functions**, and powered by **Google's Gemini 2.5 AI**, it instantly simplifies dense legal text into human-readable insights, risk scores, and actionable recommendations.
 
-**Backend API:** [privacy-policy-analyzer-seven.vercel.app](https://privacy-policy-analyzer-seven.vercel.app)
 
 ---
 
@@ -106,6 +105,5 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 ## 🤝 Support & Links
 
 - **Developer:** [Tanish Parikh](https://github.com/Tanish-Parikh)
-- **Website/API:** [privacy-policy-analyzer-seven.vercel.app](https://privacy-policy-analyzer-seven.vercel.app)
 
 Built with ❤️ by Tanish Parikh
