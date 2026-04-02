@@ -95,21 +95,11 @@ privacy-policy-analyzer/
 
 ---
 
-## 🔑 Environment Variables
-
-This project requires a **Gemini API Key** for the backend to function.
-
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-> **Important:** Never commit your `.env` file or API keys to a public repository.
-
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
 ---
 
