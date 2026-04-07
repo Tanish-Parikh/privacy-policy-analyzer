@@ -27,9 +27,7 @@ const elements = {
   recTitle: document.getElementById('rec-title'),
   recDesc: document.getElementById('rec-desc'),
   detailedRisks: document.getElementById('detailed-risks-section'),
-  detailedRisksList: document.getElementById('detailed-risks-list'),
-  loadingTitle: document.getElementById('loading-title'),
-  loadingDesc: document.getElementById('loading-desc')
+  detailedRisksList: document.getElementById('detailed-risks-list')
 };
 
 /* ───────── Background Connection ───────── */
@@ -223,23 +221,6 @@ function render(filter) {
 
 /* ───────── Analyze Function ───────── */
 async function analyzePolicy() {
-  // Show loading state
-  if (elements.loadingView) elements.loadingView.classList.remove('hidden');
-
-  // Cycle loading messages for better feedback
-  const statuses = [
-    { t: "Scanning Content...", d: "Identifying paragraphs and extracting text." },
-    { t: "Identifying Risks...", d: "Scanning for privacy risks and simplifying complex clauses." },
-    { t: "Simplifying Clauses...", d: "Translating legal terminology into plain English." },
-    { t: "Calculating Score...", d: "Finalizing the risk profile and readability grade." }
-  ];
-  let sIdx = 0;
-  const statusInterval = setInterval(() => {
-    sIdx = (sIdx + 1) % statuses.length;
-    if (elements.loadingTitle) elements.loadingTitle.textContent = statuses[sIdx].t;
-    if (elements.loadingDesc) elements.loadingDesc.textContent = statuses[sIdx].d;
-  }, 4000);
-
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
     await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
@@ -251,18 +232,16 @@ async function analyzePolicy() {
 
   const poll = setInterval(() => {
     chrome.storage.local.get(null, d => {
-      // Check if analysis is complete or errored
       if (d.score !== undefined || d.error) {
         clearInterval(poll);
-        clearInterval(statusInterval);
         data = d.clauses || [];
-        
-        // Hide loading state
         if (elements.loadingView) {
           elements.loadingView.classList.add('hidden');
         }
 
-        if (!d.score && !d.error) return;
+        if (!d.score) {
+          return;
+        }
 
         const counts = {
           high: data.filter(c => c.risk === 'high').length,
@@ -270,7 +249,7 @@ async function analyzePolicy() {
           low: data.filter(c => c.risk === 'low').length
         };
 
-        updateGauge(d.score || 0);
+        updateGauge(d.score);
         renderRiskChart(counts);
         generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
 
@@ -279,7 +258,6 @@ async function analyzePolicy() {
     });
   }, 400);
 }
-
 
 /* ───────── Tabs ───────── */
 const allTab = document.getElementById('all');
@@ -335,6 +313,26 @@ function initTheme() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  // Always trigger auto-analysis on popup load for fresh results
-  analyzePolicy();
+  // Restore state if exists, otherwise analyze automatically
+  chrome.storage.local.get(null, d => {
+    if (d.score) {
+      data = d.clauses || [];
+      const counts = {
+        high: data.filter(c => c.risk === 'high').length,
+        medium: data.filter(c => c.risk === 'medium').length,
+        low: data.filter(c => c.risk === 'low').length
+      };
+      updateGauge(d.score);
+      renderRiskChart(counts);
+      generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
+      render('summary');
+      // Hide loading animation if we have results
+      if (elements.loadingView) {
+        elements.loadingView.classList.add('hidden');
+      }
+    } else {
+      // Automatically analyze when popup opens
+      analyzePolicy();
+    }
+  });
 });
