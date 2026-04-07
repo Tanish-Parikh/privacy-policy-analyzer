@@ -11,6 +11,8 @@ const riskMeta = {
 /* ───────── UI Elements ───────── */
 const elements = {
   loadingView: document.getElementById('loading-view'),
+  loadingTitle: document.getElementById('loading-title'),
+  loadingDesc: document.getElementById('loading-desc'),
   cardsBox: document.getElementById('cards'),
   summaryView: document.getElementById('summary-view'),
   scoreEl: document.getElementById('score'),
@@ -230,10 +232,28 @@ async function analyzePolicy() {
     await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
   }
 
+  const loadingMessages = [
+    "Scanning for privacy risks...",
+    "Simplifying complex clauses...",
+    "Breaking down legal jargon...",
+    "Analyzing data collection policies...",
+    "Checking third-party sharing details...",
+    "Summarizing key takeaways...",
+    "Calculating readability scores..."
+  ];
+  let msgIdx = 0;
+  const statusInterval = setInterval(() => {
+    if (elements.loadingDesc) {
+      elements.loadingDesc.textContent = loadingMessages[msgIdx % loadingMessages.length];
+      msgIdx++;
+    }
+  }, 1500);
+
   const poll = setInterval(() => {
     chrome.storage.local.get(null, d => {
       if (d.score !== undefined || d.error) {
         clearInterval(poll);
+        clearInterval(statusInterval);
         data = d.clauses || [];
         if (elements.loadingView) {
           elements.loadingView.classList.add('hidden');
