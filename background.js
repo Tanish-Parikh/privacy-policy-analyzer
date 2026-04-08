@@ -28,6 +28,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     return true; // Keep the message channel open for async response
   }
+
+  if (request.type === "FETCH_REMOTE_CONTENT") {
+    const time = new Date().toLocaleTimeString();
+    console.log(`[${time}][Background] Fetching remote policy: ${request.url}`);
+
+    fetch(request.url)
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+        sendResponse({ success: true, html });
+      })
+      .catch(err => {
+        console.error(`[${time}][Background] Fetch error:`, err);
+        sendResponse({ success: false, error: err.message });
+      });
+
+    return true;
+  }
 });
 
 // Clear cache when popup is closed

@@ -9,7 +9,9 @@
     "storage"
   ],
   "host_permissions": [
-    "https://privacy-policy-analyzer-seven.vercel.app/*"
+    "https://privacy-policy-analyzer-seven.vercel.app/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -26,6 +28,9 @@
       ],
       "js": [
         "content.js"
+      ],
+      "css": [
+        "badge.css"
       ]
     }
   ],

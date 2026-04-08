@@ -97,11 +97,11 @@ const rules = [
 ];
 
 /* ─── Extract clauses (p AND li, deduped, up to 600 chars) ─── */
-function extractClauses() {
+function extractClauses(root = document) {
   const seen = new Set();
   const results = [];
 
-  document.querySelectorAll('p, li').forEach(el => {
+  root.querySelectorAll('p, li').forEach(el => {
     const text = el.innerText.replace(/\s+/g, ' ').trim();
     if (text.length > 40 && text.length < 600 && !seen.has(text)) {
       seen.add(text);
@@ -110,6 +110,52 @@ function extractClauses() {
   });
 
   return results;
+}
+
+/* ─── Find Privacy Policy Link ─── */
+function findPrivacyLink() {
+  const links = Array.from(document.querySelectorAll('a'));
+  const keywords = ['privacy policy', 'privacy notice', 'privacy center', 'terms of service', 'terms & conditions'];
+  
+  for (const keyword of keywords) {
+    const link = links.find(ln => ln.innerText.toLowerCase().includes(keyword));
+    if (link && link.href && link.href.startsWith('http')) return link.href;
+  }
+  
+  // Fallback to URL-based detection
+  const privacyLink = links.find(ln => ln.href && (ln.href.toLowerCase().includes('privacy') || ln.href.toLowerCase().includes('policy')));
+  return privacyLink ? privacyLink.href : null;
+}
+
+/* ─── Detect Signup/Login Page ─── */
+function isSignupOrLoginPage() {
+  const hasPassword = !!document.querySelector('input[type="password"]');
+  const text = document.body.innerText.toLowerCase();
+  const keywords = ['sign up', 'create account', 'register', 'login', 'sign in'];
+  const hasKeyword = keywords.some(k => text.includes(k));
+  return hasPassword && hasKeyword;
+}
+
+/* ─── Inject Risk Badge ─── */
+function injectRiskBadge(category, score) {
+  if (document.getElementById('privacy-policy-badge')) return;
+
+  const badge = document.createElement('div');
+  badge.id = 'privacy-policy-badge';
+  const cls = category.toLowerCase().replace(' ', '-');
+  badge.className = `privacy-analyze-badge ${cls}`;
+  
+  badge.innerHTML = `
+    <div class="badge-dot"></div>
+    <span>${category} Detected</span>
+    <div class="badge-score">${score}</div>
+  `;
+
+  badge.onclick = () => {
+    chrome.runtime.sendMessage({ action: "OPEN_POPUP" }); // Optional: prompt user
+  };
+
+  document.body.appendChild(badge);
 }
 
 /* ─── Batch API call via Background script ─── */
@@ -134,13 +180,41 @@ function explainClauses(clauses) {
 }
 
 /* ─── MAIN ANALYSIS ─── */
-async function analyzePolicy() {
+async function analyzePolicy(isSilent = false) {
   const time = new Date().toLocaleTimeString();
   
-  // Clear old results immediately so popup doesn't show stale data
-  chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
+  if (!isSilent) {
+    // Clear old results immediately so popup doesn't show stale data
+    chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
+  }
 
-  const clauses = extractClauses();
+  let clauses = extractClauses();
+  
+  // If too few clauses, try following a link
+  if (clauses.length < 10) {
+    const link = findPrivacyLink();
+    if (link) {
+      console.log(`[${time}][Analyzer] Low content on page. Fetching linked policy: ${link}`);
+      const response = await new Promise(resolve => {
+        chrome.runtime.sendMessage({ type: "FETCH_REMOTE_CONTENT", url: link }, resolve);
+      });
+
+      if (response && response.success) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(response.html, 'text/html');
+        const remoteClauses = extractClauses(doc);
+        if (remoteClauses.length > clauses.length) {
+          clauses = remoteClauses;
+          console.log(`[${time}][Analyzer] Successfully fetched ${clauses.length} clauses from remote page.`);
+        }
+      }
+    }
+  }
+
+  if (clauses.length === 0) {
+    if (!isSilent) chrome.storage.local.set({ error: "No policy content found." });
+    return null;
+  }
   const matchedResults = [];
 
   for (const clause of clauses) {
@@ -214,7 +288,21 @@ async function analyzePolicy() {
     privacyRiskPct > 60 ? 'High Risk' :
     privacyRiskPct > 30 ? 'Moderate Risk' : 'Low Risk';
 
-  chrome.storage.local.set({ clauses: results, score, grade, privacyRiskPct, riskCategory });
+  const analysisResults = { clauses: results, score, grade, privacyRiskPct, riskCategory };
+  
+  chrome.storage.local.set(analysisResults);
+  
+  return analysisResults;
+}
+
+/* ─── Auto-Check for Signup/Login ─── */
+if (isSignupOrLoginPage()) {
+  console.log("[Analyzer] Signup/Login page detected. Running proactive analysis...");
+  analyzePolicy(true).then(results => {
+    if (results && results.riskCategory) {
+      injectRiskBadge(results.riskCategory, results.score);
+    }
+  });
 }
 
 /* ─── Listener ─── */
