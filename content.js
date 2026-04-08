@@ -158,6 +158,9 @@ function injectRiskBadge(category, score) {
   document.body.appendChild(badge);
 }
 
+/* ─── Lock ─── */
+let isAnalyzing = false;
+
 /* ─── Batch API call via Background script ─── */
 function explainClauses(clauses) {
   const time = new Date().toLocaleTimeString();
@@ -181,12 +184,16 @@ function explainClauses(clauses) {
 
 /* ─── MAIN ANALYSIS ─── */
 async function analyzePolicy(isSilent = false) {
+  if (isAnalyzing) return null;
+  isAnalyzing = true;
+
   const time = new Date().toLocaleTimeString();
   
-  if (!isSilent) {
-    // Clear old results immediately so popup doesn't show stale data
-    chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
-  }
+  try {
+    if (!isSilent) {
+      // Clear old results immediately so popup doesn't show stale data
+      chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
+    }
 
   let clauses = extractClauses();
   
@@ -212,7 +219,11 @@ async function analyzePolicy(isSilent = false) {
   }
 
   if (clauses.length === 0) {
-    if (!isSilent) chrome.storage.local.set({ error: "No policy content found." });
+    console.warn(`[${time}][Analyzer] No policy content found on local or remote page.`);
+    if (!isSilent) {
+      chrome.storage.local.set({ error: "No policy content found." });
+    }
+    isAnalyzing = false;
     return null;
   }
   const matchedResults = [];
@@ -295,9 +306,19 @@ async function analyzePolicy(isSilent = false) {
 
   const analysisResults = { clauses: results, score, grade, privacyRiskPct, riskCategory };
   
-  chrome.storage.local.set(analysisResults);
+  // Only update storage if we found something OR if the user manually requested it
+  if (!isSilent || results.length > 0) {
+    console.log(`[${time}][Analyzer] Saving ${results.length} results to storage.`);
+    chrome.storage.local.set(analysisResults);
+  }
   
+  isAnalyzing = false;
   return analysisResults;
+} catch (err) {
+  console.error(`[${time}][Analyzer] Error during analysis:`, err);
+  isAnalyzing = false;
+  return null;
+}
 }
 
 /* ─── Auto-Check for Signup/Login ─── */
