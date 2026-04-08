@@ -255,10 +255,15 @@ async function analyzePolicy(isSilent = false) {
   const limitedResults = balanced.concat(remaining.slice(0, MAX_TOTAL - balanced.length));
 
   // Send ALL clauses in ONE batch API call via background script
-  console.log(`[${time}][Analyzer] Requesting batch explanation via background script...`);
   const clauseTexts = limitedResults.map(r => r.clause);
-  const aiExplanations = await explainClauses(clauseTexts);
-  console.log(`[${time}][Analyzer] Background response received.`);
+  let aiExplanations = [];
+  if (clauseTexts.length > 0) {
+    console.log(`[${time}][Analyzer] Requesting batch explanation for ${clauseTexts.length} clauses...`);
+    aiExplanations = await explainClauses(clauseTexts);
+    console.log(`[${time}][Analyzer] Background response received.`);
+  } else {
+    console.log(`[${time}][Analyzer] No relevant clauses to explain via AI.`);
+  }
 
   const results = limitedResults.map(({ clause, matchedRule }, i) => {
     const ai = aiExplanations[i];
