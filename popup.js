@@ -333,26 +333,6 @@ function initTheme() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  // Restore state if exists, otherwise analyze automatically
-  chrome.storage.local.get(null, d => {
-    if (d.score) {
-      data = d.clauses || [];
-      const counts = {
-        high: data.filter(c => c.risk === 'high').length,
-        medium: data.filter(c => c.risk === 'medium').length,
-        low: data.filter(c => c.risk === 'low').length
-      };
-      updateGauge(d.score);
-      renderRiskChart(counts);
-      generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
-      render('summary');
-      // Hide loading animation if we have results
-      if (elements.loadingView) {
-        elements.loadingView.classList.add('hidden');
-      }
-    } else {
-      // Automatically analyze when popup opens
-      analyzePolicy();
-    }
-  });
+  // Always trigger a fresh analysis to show the loading animation/progress
+  analyzePolicy();
 });
