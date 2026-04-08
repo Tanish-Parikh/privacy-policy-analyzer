@@ -53,12 +53,7 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "popup") {
     port.onDisconnect.addListener(() => {
       const time = new Date().toLocaleTimeString();
-      console.log(`[${time}][Background] Popup closed. Clearing analysis cache.`);
-      chrome.storage.local.get('theme', (res) => {
-        chrome.storage.local.clear(() => {
-          if (res.theme) chrome.storage.local.set({ theme: res.theme });
-        });
-      });
+      console.log(`[${time}][Background] Popup closed.`);
     });
   }
 });
