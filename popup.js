@@ -310,23 +310,8 @@ function initTheme() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  // Restore state if exists, otherwise analyze automatically
-  chrome.storage.local.get(null, d => {
-    if (d.score) {
-      if (elements.loadingView) elements.loadingView.classList.add('hidden');
-      data = d.clauses || [];
-      const counts = {
-        high: data.filter(c => c.risk === 'high').length,
-        medium: data.filter(c => c.risk === 'medium').length,
-        low: data.filter(c => c.risk === 'low').length
-      };
-      updateGauge(d.score);
-      renderRiskChart(counts);
-      generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
-      render('summary');
-    } else {
-      // Automatically analyze when popup opens
-      analyzePolicy();
-    }
+  // Always clear stale results and run a fresh analysis for the current page
+  chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error'], () => {
+    analyzePolicy();
   });
 });
