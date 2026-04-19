@@ -155,7 +155,7 @@ function isSignupOrLoginPage() {
 }
 
 /* ─── Inject Risk Badge ─── */
-function injectRiskBadge(category, score) {
+function injectRiskBadge(category, riskPct) {
   if (document.getElementById('privacy-policy-badge')) return;
 
   const badge = document.createElement('div');
@@ -163,14 +163,16 @@ function injectRiskBadge(category, score) {
   const cls = category.toLowerCase().replace(' ', '-');
   badge.className = `privacy-analyze-badge ${cls}`;
   
+  const scoreDisplay = riskPct === '?' ? '?' : `${riskPct}%`;
+
   badge.innerHTML = `
     <div class="badge-dot"></div>
-    <span>${category} Detected</span>
-    <div class="badge-score">${score}</div>
+    <span>${category}</span>
+    <div class="badge-score">${scoreDisplay}</div>
   `;
 
   badge.onclick = () => {
-    chrome.runtime.sendMessage({ action: "OPEN_POPUP" }); // Optional: prompt user
+    chrome.runtime.sendMessage({ action: "OPEN_POPUP" });
   };
 
   document.body.appendChild(badge);
@@ -246,7 +248,7 @@ async function analyzePolicy(isSilent = false) {
         clauses: [],
         score: 50,
         grade: 'Unknown',
-        privacyRiskPct: 50,
+        privacyRiskPct: '?',
         riskCategory: 'Moderate Risk'
       };
     }
@@ -357,7 +359,7 @@ function tryProactiveBadge(attemptsLeft = 3) {
     console.log("[Analyzer] Signup/Login page detected. Running proactive analysis...");
     analyzePolicy(true).then(results => {
       if (results && results.riskCategory) {
-        injectRiskBadge(results.riskCategory, results.score);
+        injectRiskBadge(results.riskCategory, results.privacyRiskPct);
       }
     });
   } else if (attemptsLeft > 0) {
