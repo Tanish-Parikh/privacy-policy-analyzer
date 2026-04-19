@@ -11,8 +11,6 @@ const riskMeta = {
 /* ───────── UI Elements ───────── */
 const elements = {
   loadingView: document.getElementById('loading-view'),
-  loadingTitle: document.getElementById('loading-title'),
-  loadingDesc: document.getElementById('loading-desc'),
   cardsBox: document.getElementById('cards'),
   summaryView: document.getElementById('summary-view'),
   scoreEl: document.getElementById('score'),
@@ -232,33 +230,11 @@ async function analyzePolicy() {
     await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
   }
 
-  const loadingMessages = [
-    "Scanning for privacy risks...",
-    "Simplifying complex clauses...",
-    "Breaking down legal jargon...",
-    "Analyzing data collection policies...",
-    "Checking third-party sharing details...",
-    "Summarizing key takeaways...",
-    "Calculating readability scores..."
-  ];
-  let msgIdx = 0;
-  const statusInterval = setInterval(() => {
-    if (elements.loadingDesc) {
-      elements.loadingDesc.textContent = loadingMessages[msgIdx % loadingMessages.length];
-      msgIdx++;
-    }
-  }, 1500);
-
   const poll = setInterval(() => {
     chrome.storage.local.get(null, d => {
       if (d.score !== undefined || d.error) {
         clearInterval(poll);
-        clearInterval(statusInterval);
         data = d.clauses || [];
-        if (elements.loadingView) {
-          elements.loadingView.classList.add('hidden');
-        }
-
         if (!d.score) {
           return;
         }
@@ -333,6 +309,22 @@ function initTheme() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  // Always trigger a fresh analysis to show the loading animation/progress
-  analyzePolicy();
+  // Restore state if exists, otherwise analyze automatically
+  chrome.storage.local.get(null, d => {
+    if (d.score) {
+      data = d.clauses || [];
+      const counts = {
+        high: data.filter(c => c.risk === 'high').length,
+        medium: data.filter(c => c.risk === 'medium').length,
+        low: data.filter(c => c.risk === 'low').length
+      };
+      updateGauge(d.score);
+      renderRiskChart(counts);
+      generateSummary(counts, d.grade || 'Unknown', d.privacyRiskPct || 0);
+      render('summary');
+    } else {
+      // Automatically analyze when popup opens
+      analyzePolicy();
+    }
+  });
 });
