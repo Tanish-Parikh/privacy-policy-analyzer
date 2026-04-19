@@ -96,18 +96,32 @@ const rules = [
   }
 ];
 
-/* ─── Extract clauses (p AND li, deduped, up to 600 chars) ─── */
+/* ─── Extract clauses (p, li, and divs as fallback, deduped, up to 600 chars) ─── */
 function extractClauses(root = document) {
   const seen = new Set();
   const results = [];
 
+  // Primary: p and li elements
   root.querySelectorAll('p, li').forEach(el => {
-    const text = el.innerText.replace(/\s+/g, ' ').trim();
+    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text.length > 40 && text.length < 600 && !seen.has(text)) {
       seen.add(text);
       results.push(text);
     }
   });
+
+  // Fallback: also check divs if we got very little from p/li
+  if (results.length < 5) {
+    root.querySelectorAll('div').forEach(el => {
+      // Only leaf-like divs (no nested divs)
+      if (el.querySelector('div')) return;
+      const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text.length > 40 && text.length < 400 && !seen.has(text)) {
+        seen.add(text);
+        results.push(text);
+      }
+    });
+  }
 
   return results;
 }
@@ -224,9 +238,19 @@ async function analyzePolicy(isSilent = false) {
 
   if (clauses.length === 0) {
     console.warn(`[${time}][Analyzer] No policy content found on local or remote page.`);
-    if (!isSilent) {
-      chrome.storage.local.set({ error: "No policy content found." });
+    if (isSilent) {
+      // For proactive badge: can't read policy, warn user with a default medium-risk result
+      console.log(`[${time}][Analyzer] Proactive mode: showing default caution badge.`);
+      isAnalyzing = false;
+      return {
+        clauses: [],
+        score: 50,
+        grade: 'Unknown',
+        privacyRiskPct: 50,
+        riskCategory: 'Moderate Risk'
+      };
     }
+    chrome.storage.local.set({ error: "No policy content found." });
     isAnalyzing = false;
     return null;
   }
