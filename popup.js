@@ -234,6 +234,7 @@ async function analyzePolicy() {
     chrome.storage.local.get(null, d => {
       if (d.score !== undefined || d.error) {
         clearInterval(poll);
+        if (elements.loadingView) elements.loadingView.classList.add('hidden');
         data = d.clauses || [];
         if (!d.score) {
           return;
@@ -312,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Restore state if exists, otherwise analyze automatically
   chrome.storage.local.get(null, d => {
     if (d.score) {
+      if (elements.loadingView) elements.loadingView.classList.add('hidden');
       data = d.clauses || [];
       const counts = {
         high: data.filter(c => c.risk === 'high').length,
