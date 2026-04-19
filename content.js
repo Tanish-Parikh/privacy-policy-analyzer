@@ -131,7 +131,11 @@ function findPrivacyLink() {
 function isSignupOrLoginPage() {
   const hasPassword = !!document.querySelector('input[type="password"]');
   const text = document.body.innerText.toLowerCase();
-  const keywords = ['sign up', 'create account', 'register', 'login', 'sign in'];
+  const keywords = [
+    'sign up', 'create account', 'register', 'login', 'sign in',
+    'log in', 'log into', 'create new account', 'forgot password',
+    'forgot your password', 'new account', 'join now'
+  ];
   const hasKeyword = keywords.some(k => text.includes(k));
   return hasPassword && hasKeyword;
 }
