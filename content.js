@@ -325,14 +325,28 @@ async function analyzePolicy(isSilent = false) {
 }
 }
 
-/* ─── Auto-Check for Signup/Login ─── */
-if (isSignupOrLoginPage()) {
-  console.log("[Analyzer] Signup/Login page detected. Running proactive analysis...");
-  analyzePolicy(true).then(results => {
-    if (results && results.riskCategory) {
-      injectRiskBadge(results.riskCategory, results.score);
-    }
-  });
+/* ─── Auto-Check for Signup/Login (with DOM-ready retries) ─── */
+function tryProactiveBadge(attemptsLeft = 3) {
+  if (document.getElementById('privacy-policy-badge')) return; // already injected
+
+  if (isSignupOrLoginPage()) {
+    console.log("[Analyzer] Signup/Login page detected. Running proactive analysis...");
+    analyzePolicy(true).then(results => {
+      if (results && results.riskCategory) {
+        injectRiskBadge(results.riskCategory, results.score);
+      }
+    });
+  } else if (attemptsLeft > 0) {
+    // Page may not have fully rendered yet — retry after a delay
+    setTimeout(() => tryProactiveBadge(attemptsLeft - 1), 1000);
+  }
+}
+
+// Run after DOM is ready (catches both static & dynamically rendered login pages)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => tryProactiveBadge());
+} else {
+  tryProactiveBadge(); // DOM already ready
 }
 
 /* ─── Listener ─── */
