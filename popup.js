@@ -163,7 +163,16 @@ function generateSummary(counts, grade, riskPct) {
 
   // Detailed Risks
   if (elements.detailedRisks && elements.detailedRisksList) {
-    const highRisks = data.filter(c => c.risk === 'high' || c.risk === 'medium').slice(0, 3);
+    // Deduplicate by type to show variety
+    const seenTypes = new Set();
+    const highRisks = data
+      .filter(c => c.risk === 'high' || c.risk === 'medium')
+      .filter(c => {
+        if (seenTypes.has(c.type)) return false;
+        seenTypes.add(c.type);
+        return true;
+      })
+      .slice(0, 3);
     elements.detailedRisks.classList.toggle('hidden', highRisks.length === 0);
     elements.detailedRisksList.textContent = '';
     highRisks.forEach(c => {
