@@ -315,12 +315,17 @@ async function analyzePolicy(isSilent = false) {
   // Send ALL clauses in ONE batch API call via background script
   const clauseTexts = limitedResults.map(r => r.clause);
   let aiExplanations = [];
-  if (clauseTexts.length > 0) {
+  if (clauseTexts.length > 0 && !isSilent) {
     console.log(`[${time}][Analyzer] Requesting batch explanation for ${clauseTexts.length} clauses...`);
     aiExplanations = await explainClauses(clauseTexts);
     console.log(`[${time}][Analyzer] Background response received.`);
   } else {
-    console.log(`[${time}][Analyzer] No relevant clauses to explain via AI.`);
+    aiExplanations = clauseTexts.map(() => null);
+    if (isSilent) {
+      console.log(`[${time}][Analyzer] Silent mode: Skipping AI explanation call to save quota.`);
+    } else if (clauseTexts.length === 0) {
+      console.log(`[${time}][Analyzer] No relevant clauses to explain via AI.`);
+    }
   }
 
   const results = limitedResults.map(({ clause, matchedRule }, i) => {
