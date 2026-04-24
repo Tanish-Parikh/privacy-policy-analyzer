@@ -14,80 +14,66 @@ export default async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.NVIDIA_API_KEY;
 
     if (!apiKey) {
-        console.error('No API key found');
-        return res.status(200).json({ 
-            error: 'API_KEY_MISSING',
-            explanations: clauses.map(() => null) 
-        });
+        return res.status(200).json({ error: 'API_KEY_MISSING', explanations: clauses.map(() => null) });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-
-    const prompt = `You are a privacy policy expert. Analyze these ${clauses.length} clauses and provide a one-sentence, plain-English summary for each.
-Return the results as a JSON object with an "explanations" key containing an array of ${clauses.length} strings.
-
-Clauses:
-${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
-
-    const body = JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { 
-            temperature: 0.1, 
-            maxOutputTokens: 4096
-        }
-    });
-
+    // List of models to try in order
+    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
+    
     let lastError = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+
+    for (const model of models) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const prompt = `You are a privacy expert. Provide a one-sentence, plain-English summary for each of these ${clauses.length} clauses. Return as JSON: { "explanations": ["string", ...] }\n\nClauses:\n${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n\n')}`;
+        
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1 } })
             });
 
             const data = await response.json();
 
+            if (response.status === 404) {
+                console.warn(`Model ${model} not found (404), trying next...`);
+                lastError = `404: ${model}`;
+                continue; 
+            }
+
             if (!response.ok) {
-                const errMsg = data?.error?.message || response.statusText || 'Gemini Error';
+                const errMsg = data?.error?.message || response.statusText || 'AI Error';
                 lastError = `Gemini_${response.status}: ${errMsg}`;
-                if (response.status === 429) {
-                    await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-                    continue;
-                }
-                break; 
+                break; // Stop on auth or other major errors
             }
 
             let text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
             if (!text) throw new Error("Empty AI response");
 
-            // Extract JSON from potential markdown blocks
             const jsonMatch = text.match(/```json?\s*([\s\S]*?)\s*```/) || [null, text];
             const cleanText = jsonMatch[1].trim();
-
             const parsed = JSON.parse(cleanText);
             const rawExplanations = Array.isArray(parsed) ? parsed : (parsed.explanations || []);
             
-            const evaluations = clauses.map((_, i) => {
-                const item = rawExplanations[i];
-                if (typeof item === 'string') return item;
-                if (item && typeof item === 'object') return item.explanation || item.text || item.summary || JSON.stringify(item);
-                return null;
-            });
-
             return res.status(200).json({ 
                 success: true,
-                explanations: evaluations 
+                model_used: model,
+                explanations: clauses.map((_, i) => {
+                    const item = rawExplanations[i];
+                    if (typeof item === 'string') return item;
+                    if (item && typeof item === 'object') return item.explanation || item.text || item.summary || JSON.stringify(item);
+                    return null;
+                })
             });
 
         } catch (err) {
-            console.error('[Backend] Error:', err.message);
+            console.error(`Attempt with ${model} failed:`, err.message);
             lastError = err.message;
         }
     }
 
     return res.status(200).json({ 
-        error: lastError || 'UNKNOWN_ERROR',
+        error: `ALL_MODELS_FAILED: ${lastError}`,
         explanations: clauses.map(() => null) 
     });
 }
