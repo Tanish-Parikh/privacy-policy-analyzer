@@ -17,10 +17,20 @@ export default async function handler(req, res) {
         return res.status(200).json({ error: 'API_KEY_MISSING', explanations: clauses.map(() => null) });
     }
 
-    // Use ONLY gemini-2.5-flash as requested
+    if (!apiKey || apiKey.length < 10) {
+        return res.status(200).json({ 
+            error: 'API_KEY_MISSING_OR_INVALID', 
+            details: `Key length: ${apiKey ? apiKey.length : 0}`,
+            explanations: clauses.map(() => null) 
+        });
+    }
+
+    // configs to try
     const configs = [
         { model: 'gemini-2.5-flash', version: 'v1beta' },
-        { model: 'gemini-2.5-flash', version: 'v1' }
+        { model: 'gemini-2.5-flash', version: 'v1' },
+        { model: 'gemini-1.5-flash', version: 'v1' },
+        { model: 'gemini-pro', version: 'v1' }
     ];
     
     let lastError = null;
