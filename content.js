@@ -292,13 +292,12 @@ async function analyzePolicy(isSilent = false) {
   const low = matchedResults.filter(r => r.matchedRule.risk === 'low');
 
   const MAX_TOTAL = 15;
-  const PER_BUCKET = Math.floor(MAX_TOTAL / 3); // Roughly 6-7 each
 
-  // Take a baseline from each bucket
+  // Take a baseline from each bucket based on the 6-6-3 rule
   let balanced = [
-    ...high.slice(0, PER_BUCKET),
-    ...med.slice(0, PER_BUCKET),
-    ...low.slice(0, PER_BUCKET)
+    ...high.slice(0, 6),
+    ...med.slice(0, 6),
+    ...low.slice(0, 3)
   ];
 
   // Fill remaining slots with whatever is left (prioritizing high > medium > low)
