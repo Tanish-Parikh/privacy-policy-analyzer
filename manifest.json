@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Privacy Policy Analysis",
-  "version": "8.3",
+  "version": "9.0.1",
   "description": "AI-powered privacy policy analyzer with background processing to bypass CSP.",
   "permissions": [
     "activeTab",
@@ -36,7 +36,8 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "privacy-policy-analyzer@tanish.parikh"
+      "id": "privacy-analyzer@tanishparikh.extension",
+      "strict_min_version": "109.0"
     }
   }
 }

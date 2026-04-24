@@ -64,7 +64,7 @@ function renderRiskChart(counts) {
 
   if (total === 0) {
     if (chart) chart.style.background = 'var(--border-color)';
-    if (legend) legend.innerHTML = '';
+    if (legend) legend.textContent = '';
     return;
   }
 
@@ -80,11 +80,25 @@ function renderRiskChart(counts) {
   }
 
   if (legend) {
-    legend.innerHTML = `
-      <div class="legend-item"><span class="legend-dot" style="background:#f87171"></span> High (${counts.high})</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span> Med (${counts.medium})</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#34d399"></span> Low (${counts.low})</div>
-    `;
+    legend.textContent = '';
+    const items = [
+      { color: '#f87171', label: 'High', count: counts.high },
+      { color: '#fbbf24', label: 'Med', count: counts.medium },
+      { color: '#34d399', label: 'Low', count: counts.low }
+    ];
+    
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'legend-item';
+      
+      const dot = document.createElement('span');
+      dot.className = 'legend-dot';
+      dot.style.background = item.color;
+      
+      div.appendChild(dot);
+      div.appendChild(document.createTextNode(` ${item.label} (${item.count})`));
+      legend.appendChild(div);
+    });
   }
 }
 
@@ -115,27 +129,64 @@ function generateSummary(counts, grade, riskPct) {
     }
   }
 
-  let riskLevel = riskPct > 60 ? 'high-risk' : riskPct > 30 ? 'moderate risk' : 'low-risk';
-  let overview = `This policy is <strong>${grade.toLowerCase()}</strong> to read and holds a <strong>${riskLevel}</strong> profile. `;
-  let findings = counts.high > 0 ? `It contains <strong>${counts.high} high-risk</strong> clauses.` : 
-                 counts.medium > 0 ? `It contains ${counts.medium} medium-risk clauses.` : 
-                 `It mostly contains low-risk practices.`;
+  const riskLevel = riskPct > 60 ? 'high-risk' : riskPct > 30 ? 'moderate risk' : 'low-risk';
+  if (elements.summaryText) {
+    elements.summaryText.textContent = '';
+    
+    const part1 = document.createTextNode('This policy is ');
+    const gradeStrong = document.createElement('strong');
+    gradeStrong.textContent = grade.toLowerCase();
+    
+    const part2 = document.createTextNode(' to read and holds a ');
+    const riskStrong = document.createElement('strong');
+    riskStrong.textContent = riskLevel;
+    
+    const part3 = document.createTextNode(' profile. ');
+    
+    const findingsStrong = document.createElement('strong');
+    if (counts.high > 0) {
+      findingsStrong.textContent = `${counts.high} high-risk`;
+    }
+    
+    const part4 = document.createTextNode(counts.high > 0 ? ' clauses.' : 
+                  counts.medium > 0 ? `It contains ${counts.medium} medium-risk clauses.` : 
+                  `It mostly contains low-risk practices.`);
 
-  if (elements.summaryText) elements.summaryText.innerHTML = overview + findings;
+    elements.summaryText.append(part1, gradeStrong, part2, riskStrong, part3);
+    if (counts.high > 0) {
+      elements.summaryText.appendChild(findingsStrong);
+    }
+    elements.summaryText.appendChild(part4);
+  }
 
   // Detailed Risks
   if (elements.detailedRisks && elements.detailedRisksList) {
     const highRisks = data.filter(c => c.risk === 'high' || c.risk === 'medium').slice(0, 3);
     elements.detailedRisks.classList.toggle('hidden', highRisks.length === 0);
-    elements.detailedRisksList.innerHTML = highRisks.map(c => `
-      <div class="risk-item">
-        <span class="risk-bullet" style="background:${riskMeta[c.risk].color}"></span>
-        <div class="risk-text">
-          <div class="risk-title">${c.type}</div>
-          <div class="risk-context">${c.text.substring(0, 40)}...</div>
-        </div>
-      </div>
-    `).join('');
+    elements.detailedRisksList.textContent = '';
+    highRisks.forEach(c => {
+      const item = document.createElement('div');
+      item.className = 'risk-item';
+      
+      const dot = document.createElement('span');
+      dot.className = 'risk-bullet';
+      dot.style.background = riskMeta[c.risk].color;
+      
+      const textDiv = document.createElement('div');
+      textDiv.className = 'risk-text';
+      
+      const title = document.createElement('div');
+      title.className = 'risk-title';
+      title.textContent = c.type;
+      
+      const context = document.createElement('div');
+      context.className = 'risk-context';
+      context.textContent = c.text.substring(0, 40) + '...';
+      
+      textDiv.append(title, context);
+      item.append(dot, textDiv);
+      elements.detailedRisksList.appendChild(item);
+    });
   }
 
   // Recommendations
@@ -169,7 +220,7 @@ function render(filter) {
   } else {
     if (elements.cardsBox) {
       elements.cardsBox.classList.remove('hidden');
-      elements.cardsBox.innerHTML = '';
+      elements.cardsBox.textContent = '';
     }
     if (elements.summaryView) elements.summaryView.classList.add('hidden');
 
@@ -180,7 +231,13 @@ function render(filter) {
     });
 
     if (filtered.length === 0) {
-      if (elements.cardsBox) elements.cardsBox.innerHTML = `<div class="empty-state">✅ No matching clauses found.</div>`;
+      if (elements.cardsBox) {
+        elements.cardsBox.textContent = '';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        emptyDiv.textContent = '✅ No matching clauses found.';
+        elements.cardsBox.appendChild(emptyDiv);
+      }
       return;
     }
 
@@ -193,28 +250,50 @@ function render(filter) {
       const hasMore = c.text.length > 120;
       const explanation = c.simple || "Explanation unavailable";
 
-      d.innerHTML = `
-        <div class="card-header">
-          <span class="${m.cls}">${m.label}</span>
-          <span class="card-type">${c.type}</span>
-        </div>
-        <div class="clause-preview">${preview}</div>
-        ${hasMore ? `<div class="clause-full" style="display:none">${c.text}</div><button class="toggle-btn">View More</button>` : ''}
-        <div class="exp">${explanation}</div>
-      `;
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      
+      const riskSpan = document.createElement('span');
+      riskSpan.className = m.cls;
+      riskSpan.textContent = m.label;
+      
+      const typeSpan = document.createElement('span');
+      typeSpan.className = 'card-type';
+      typeSpan.textContent = c.type;
+      
+      header.append(riskSpan, typeSpan);
+      
+      const previewDiv = document.createElement('div');
+      previewDiv.className = 'clause-preview';
+      previewDiv.textContent = preview;
+      
+      d.append(header, previewDiv);
+
+      if (hasMore) {
+        const fullDiv = document.createElement('div');
+        fullDiv.className = 'clause-full';
+        fullDiv.style.display = 'none';
+        fullDiv.textContent = c.text;
+        
+        const btn = document.createElement('button');
+        btn.className = 'toggle-btn';
+        btn.textContent = 'View More';
+        btn.onclick = () => {
+          const isHidden = fullDiv.style.display === 'none';
+          fullDiv.style.display = isHidden ? 'block' : 'none';
+          previewDiv.style.display = isHidden ? 'none' : 'block';
+          btn.textContent = isHidden ? 'View Less' : 'View More';
+        };
+        d.append(fullDiv, btn);
+      }
+      
+      const expDiv = document.createElement('div');
+      expDiv.className = 'exp';
+      expDiv.textContent = explanation;
+      
+      d.append(expDiv);
       if (elements.cardsBox) elements.cardsBox.appendChild(d);
 
-      const toggleBtn = d.querySelector('.toggle-btn');
-      if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-          const full = d.querySelector('.clause-full');
-          const prev = d.querySelector('.clause-preview');
-          const isHidden = full.style.display === 'none';
-          full.style.display = isHidden ? 'block' : 'none';
-          prev.style.display = isHidden ? 'none' : 'block';
-          toggleBtn.textContent = isHidden ? 'View Less' : 'View More';
-        });
-      }
     });
   }
 }

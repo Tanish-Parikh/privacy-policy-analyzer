@@ -165,11 +165,17 @@ function injectRiskBadge(category, riskPct) {
   
   const scoreDisplay = riskPct === '?' ? '?' : `${riskPct}%`;
 
-  badge.innerHTML = `
-    <div class="badge-dot"></div>
-    <span>${category}</span>
-    <div class="badge-score">${scoreDisplay}</div>
-  `;
+  const dot = document.createElement('div');
+  dot.className = 'badge-dot';
+  
+  const label = document.createElement('span');
+  label.textContent = category;
+  
+  const score = document.createElement('div');
+  score.className = 'badge-score';
+  score.textContent = scoreDisplay;
+  
+  badge.append(dot, label, score);
 
   badge.onclick = () => {
     chrome.runtime.sendMessage({ action: "OPEN_POPUP" });
