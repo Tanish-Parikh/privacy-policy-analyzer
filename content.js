@@ -199,7 +199,7 @@ function explainClauses(clauses) {
         console.error(`[${time}][Analyzer] Background error:`, chrome.runtime.lastError.message);
         resolve(clauses.map(() => null));
       } else if (response && response.success) {
-        resolve(response.evaluations);
+        resolve(response.explanations);
       } else {
         console.warn(`[${time}][Analyzer] Background fetch failed:`, response?.error);
         resolve(clauses.map(() => null));
@@ -280,7 +280,7 @@ async function analyzePolicy(isSilent = false) {
   const med = matchedResults.filter(r => r.matchedRule.risk === 'medium');
   const low = matchedResults.filter(r => r.matchedRule.risk === 'low');
 
-  const MAX_TOTAL = 20;
+  const MAX_TOTAL = 15;
   const PER_BUCKET = Math.floor(MAX_TOTAL / 3); // Roughly 6-7 each
 
   // Take a baseline from each bucket
