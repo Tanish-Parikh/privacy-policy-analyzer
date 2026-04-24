@@ -17,13 +17,10 @@ export default async function handler(req, res) {
         return res.status(200).json({ error: 'API_KEY_MISSING', explanations: clauses.map(() => null) });
     }
 
-    // List of model/version combinations to try
+    // Use ONLY gemini-2.5-flash as requested
     const configs = [
-        { model: 'gemini-1.5-flash', version: 'v1' },
-        { model: 'gemini-1.5-flash', version: 'v1beta' },
-        { model: 'gemini-1.5-flash-latest', version: 'v1beta' },
-        { model: 'gemini-pro', version: 'v1' },
-        { model: 'gemini-pro', version: 'v1beta' }
+        { model: 'gemini-2.5-flash', version: 'v1beta' },
+        { model: 'gemini-2.5-flash', version: 'v1' }
     ];
     
     let lastError = null;
