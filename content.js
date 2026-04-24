@@ -215,11 +215,11 @@ async function analyzePolicy(isSilent = false) {
 
   const time = new Date().toLocaleTimeString();
 
-  // Cache check: Don't re-analyze if we already have results for this exact URL
+  // Cache check: Don't re-analyze if we already have AI results for this exact URL
   if (!isSilent) {
-    const cached = await chrome.storage.local.get(['lastAnalyzedUrl', 'clauses']);
-    if (cached.lastAnalyzedUrl === window.location.href && cached.clauses && cached.clauses.length > 0) {
-      console.log(`[${time}][Analyzer] Using cached results for this URL.`);
+    const cached = await chrome.storage.local.get(['lastAnalyzedUrl', 'clauses', 'isAiGenerated']);
+    if (cached.lastAnalyzedUrl === window.location.href && cached.isAiGenerated && cached.clauses && cached.clauses.length > 0) {
+      console.log(`[${time}][Analyzer] Using cached AI results for this URL.`);
       isAnalyzing = false;
       return; 
     }
@@ -356,11 +356,19 @@ async function analyzePolicy(isSilent = false) {
     privacyRiskPct > 60 ? 'High Risk' :
     privacyRiskPct > 30 ? 'Moderate Risk' : 'Low Risk';
 
-  const analysisResults = { clauses: results, score, grade, privacyRiskPct, riskCategory };
+  const hasAi = aiExplanations.some(e => e !== null);
+  const analysisResults = { 
+    clauses: results, 
+    score, 
+    grade, 
+    privacyRiskPct, 
+    riskCategory,
+    isAiGenerated: hasAi 
+  };
   
   // Only update storage if we found something OR if the user manually requested it
   if (!isSilent || results.length > 0) {
-    console.log(`[${time}][Analyzer] Saving ${results.length} results to storage.`);
+    console.log(`[${time}][Analyzer] Saving ${results.length} results to storage (AI: ${hasAi}).`);
     chrome.storage.local.set(analysisResults);
   }
   
