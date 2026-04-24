@@ -12,12 +12,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })
     .then(async res => {
       console.log(`[${time}][Background] API Status: ${res.status}`);
-      const text = await res.text();
+      const data = await res.json();
       
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       
-      const data = JSON.parse(text);
-      if (!Array.isArray(data?.explanations)) throw new Error("Missing explanations array in JSON");
+      if (!Array.isArray(data?.explanations)) {
+        throw new Error("Missing explanations array in JSON");
+      }
       
       sendResponse({ success: true, evaluations: data.explanations });
     })
