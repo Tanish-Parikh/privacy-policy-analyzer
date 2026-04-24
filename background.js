@@ -1,5 +1,6 @@
 let lastRequestTime = 0;
-const COOLDOWN_MS = 12000; // 12 seconds between requests
+const COOLDOWN_MS = 5000; // 5 seconds
+const API_URL = "https://privacy-policy-analyzer-seven.vercel.app/api/analyze";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "EXPLAIN_CLAUSES") {
@@ -9,13 +10,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (now - lastRequestTime < COOLDOWN_MS) {
       const waitSec = Math.ceil((COOLDOWN_MS - (now - lastRequestTime)) / 1000);
-      console.warn(`[${time}][Background] Cooldown active. Wait ${waitSec}s.`);
-      sendResponse({ error: `Please wait ${waitSec}s before next analysis (API Limit Protection)` });
+      console.warn(`[${time}][Background] Cooldown: Wait ${waitSec}s.`);
+      sendResponse({ error: `Please wait ${waitSec}s` });
       return true;
     }
 
     lastRequestTime = now;
-    console.log(`[${time}][Background] Received request for ${clauses.length} clauses.`);
+    console.log(`[${time}][Background] Calling API: ${API_URL}`);
     
     fetch("https://privacy-policy-analyzer-seven.vercel.app/api/analyze", {
       method: "POST",
