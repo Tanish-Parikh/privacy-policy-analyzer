@@ -21,7 +21,7 @@ export default async function handler(req, res) {
         });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `You are a privacy policy expert. Analyze these ${clauses.length} clauses and provide a one-sentence, plain-English summary for each.
 Return the results as a JSON object with an "explanations" key containing an array of ${clauses.length} strings.
