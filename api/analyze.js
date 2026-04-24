@@ -25,12 +25,12 @@ export default async function handler(req, res) {
         });
     }
 
-    // configs to try
+    // configs to try (Gemini 2.x Series based on your screenshot)
     const configs = [
+        { model: 'gemini-2.0-flash', version: 'v1beta' },
+        { model: 'gemini-2.0-flash-lite', version: 'v1beta' },
         { model: 'gemini-2.5-flash', version: 'v1beta' },
-        { model: 'gemini-2.5-flash', version: 'v1' },
-        { model: 'gemini-1.5-flash', version: 'v1' },
-        { model: 'gemini-pro', version: 'v1' }
+        { model: 'gemini-2.5-flash-lite', version: 'v1beta' }
     ];
     
     let lastError = null;
