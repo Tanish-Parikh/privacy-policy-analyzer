@@ -14,8 +14,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.log(`[${time}][Background] API Status: ${res.status}`);
       const data = await res.json();
       
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}`);
+      if (!res.ok || data.error) {
+        const errorMsg = data.error || `HTTP ${res.status}`;
+        console.error(`[${time}][Background] API Error:`, errorMsg);
+        throw new Error(errorMsg);
       }
       
       if (!Array.isArray(data?.explanations)) {
