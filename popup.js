@@ -192,7 +192,34 @@ function generateSummary(counts, grade, riskPct) {
       
       const context = document.createElement('div');
       context.className = 'risk-context';
-      context.textContent = c.text.substring(0, 40) + '...';
+      
+      const isLong = c.text.length > 60;
+      const previewText = isLong ? c.text.substring(0, 60) + '...' : c.text;
+      
+      const textSpan = document.createElement('span');
+      textSpan.textContent = previewText;
+      
+      context.appendChild(textSpan);
+
+      if (isLong) {
+        const readMore = document.createElement('span');
+        readMore.className = 'risk-read-more';
+        readMore.textContent = ' Read More';
+        
+        const fullText = document.createElement('div');
+        fullText.className = 'risk-full-text hidden';
+        fullText.textContent = c.text;
+        
+        item.style.cursor = 'pointer';
+        item.onclick = () => {
+          const isHidden = fullText.classList.toggle('hidden');
+          textSpan.classList.toggle('hidden', !isHidden);
+          readMore.textContent = isHidden ? ' Read More' : ' Show Less';
+        };
+        
+        context.appendChild(readMore);
+        context.appendChild(fullText);
+      }
       
       textDiv.append(title, context);
       item.append(dot, textDiv);
