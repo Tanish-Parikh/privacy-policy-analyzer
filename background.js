@@ -21,9 +21,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       
       if (!Array.isArray(data?.explanations)) {
+        console.error(`[${time}][Background] Invalid API Response:`, data);
         throw new Error("Missing explanations array in JSON");
       }
       
+      console.log(`[${time}][Background] Success! Model used: ${data.model_used || 'unknown'}`);
       sendResponse({ success: true, explanations: data.explanations });
     })
     .catch(err => {
