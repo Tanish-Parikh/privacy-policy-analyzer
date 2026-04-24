@@ -22,7 +22,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         throw new Error("Missing explanations array in JSON");
       }
       
-      sendResponse({ success: true, evaluations: data.explanations });
+      sendResponse({ success: true, explanations: data.explanations });
     })
     .catch(err => {
       console.error(`[${time}][Background] API Fetch error:`, err);
