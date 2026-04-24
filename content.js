@@ -214,10 +214,21 @@ async function analyzePolicy(isSilent = false) {
   isAnalyzing = true;
 
   const time = new Date().toLocaleTimeString();
+
+  // Cache check: Don't re-analyze if we already have results for this exact URL
+  if (!isSilent) {
+    const cached = await chrome.storage.local.get(['lastAnalyzedUrl', 'clauses']);
+    if (cached.lastAnalyzedUrl === window.location.href && cached.clauses && cached.clauses.length > 0) {
+      console.log(`[${time}][Analyzer] Using cached results for this URL.`);
+      isAnalyzing = false;
+      return; 
+    }
+  }
   
   try {
     if (!isSilent) {
-      // Clear old results immediately so popup doesn't show stale data
+      // Clear old results and set new URL
+      chrome.storage.local.set({ lastAnalyzedUrl: window.location.href });
       chrome.storage.local.remove(['clauses', 'score', 'grade', 'privacyRiskPct', 'riskCategory', 'error']);
     }
 
