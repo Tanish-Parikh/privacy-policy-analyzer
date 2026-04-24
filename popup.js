@@ -27,7 +27,9 @@ const elements = {
   recTitle: document.getElementById('rec-title'),
   recDesc: document.getElementById('rec-desc'),
   detailedRisks: document.getElementById('detailed-risks-section'),
-  detailedRisksList: document.getElementById('detailed-risks-list')
+  detailedRisksList: document.getElementById('detailed-risks-list'),
+  loadingTitle: document.getElementById('loading-title'),
+  loadingDesc: document.getElementById('loading-desc')
 };
 
 /* ───────── Background Connection ───────── */
@@ -309,10 +311,32 @@ async function analyzePolicy() {
     await chrome.tabs.sendMessage(tab.id, { action: 'analyze' });
   }
 
+  const messages = [
+    "Scanning for hidden privacy risks...",
+    "Simplifying complex legal jargon...",
+    "Calculating safety and trust scores...",
+    "Consulting the Gemini 2.x AI...",
+    "Evaluating data retention policies...",
+    "Mapping third-party sharing rules...",
+    "Reviewing user rights and opt-outs..."
+  ];
+  let msgIdx = 0;
+  const msgInterval = setInterval(() => {
+    if (elements.loadingDesc) {
+      elements.loadingDesc.style.opacity = 0;
+      setTimeout(() => {
+        elements.loadingDesc.textContent = messages[msgIdx];
+        elements.loadingDesc.style.opacity = 1;
+        msgIdx = (msgIdx + 1) % messages.length;
+      }, 300);
+    }
+  }, 2500);
+
   const poll = setInterval(() => {
     chrome.storage.local.get(null, d => {
       if (d.score !== undefined || d.error) {
         clearInterval(poll);
+        clearInterval(msgInterval);
         if (elements.loadingView) elements.loadingView.classList.add('hidden');
         data = d.clauses || [];
         if (!d.score) {
